@@ -1,0 +1,53 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gitweave
+      POSTGRES_PASSWORD: gitweave
+      POSTGRES_DB: gitweave
+    ports: ["5432:5432"]
+    volumes:
+      - gw_db:/var/lib/postgresql/data
+
+  app:
+    # Your monolith (api-gateway + auth-svc + repo-svc) for local dev
+    build: ./app
+    environment:
+      DB_URL: postgres://gitweave:gitweave@db/gitweave
+      AUTH_SESSION_SECRET: dev_super_secret
+      AUTH_COOKIE_DOMAIN: localhost
+      REPO_ROOT: /data/repos
+      REPO_ARCHIVE_ROOT: /data/archived
+    ports: ["8080:8080"]
+    depends_on: [db]
+    volumes:
+      - gw_repos:/data/repos
+      - gw_archived:/data/archived
+
+  git_http:
+    image: nginx:alpine
+    depends_on: [app]
+    environment:
+      - GIT_HTTP_BACKEND=/usr/libexec/git-core/git-http-backend
+    ports: ["8081:80"]
+    volumes:
+      - gw_repos:/data/repos:ro
+      - ./ops/nginx/conf.d:/etc/nginx/conf.d:ro
+    # nginx location /git/ -> fastcgi/uwsgi proxy or simple CGI wrapper that invokes git-http-backend
+
+  ssh_gitd:
+    image: linuxserver/openssh-server
+    environment:
+      - PUBLIC_KEY_DIR=/keys
+    ports: ["2222:2222"]
+    volumes:
+      - gw_repos:/data/repos
+      - gw_keys:/keys
+      # Mount a small init script to rebuild authorized_keys from app API
+
+volumes:
+  gw_db:
+  gw_repos:
+  gw_archived:
+  gw_keys:
