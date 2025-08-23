@@ -27,8 +27,8 @@ describe(run ? 'Epic 1 - Auth API (MVP)' : 'Epic 1 - Auth API (MVP) [SKIPPED]', 
     if (res.status === 201) {
       // body should contain user summary
       expect(body?.user?.email).toBe(TEST_USER.email);
-      // Align to current implementation default role
-      expect(body?.user?.role).toBe('developer');
+      // First user is owner
+      expect(body?.user?.role).toBe('owner');
     }
   });
 
@@ -112,6 +112,25 @@ describe(run ? 'Epic 1 - Auth API (MVP)' : 'Epic 1 - Auth API (MVP) [SKIPPED]', 
       headers: { Authorization: `Bearer ${createdPat!.token}` }
     } as any);
     expect(res.status).toBe(200);
+  });
+
+  it('updates PAT last_used_at when used', async () => {
+    if (!run) return expect(true).toBe(true);
+    expect(createdPat?.token).toBeTruthy();
+    // Trigger a use
+    await client.request('/orgs/current', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${createdPat!.token}` }
+    } as any);
+    // Fetch tokens and check last_used_at is present (format not asserted)
+    const list = await client.request('/auth/pat', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${createdPat!.token}` }
+    } as any);
+    expect(list.res.status).toBe(200);
+    const found = (list.body?.tokens || []).find((t: any) => t.id === createdPat!.id);
+    expect(found).toBeTruthy();
+    expect(found.last_used_at || found.lastUsedAt).toBeTruthy();
   });
 
   it('lists PATs using Bearer auth (without relying on session)', async () => {

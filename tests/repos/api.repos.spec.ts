@@ -11,13 +11,20 @@ describe(run ? 'Epic 3 - Repos API (MVP)' : 'Epic 3 - Repos API (MVP) [SKIPPED]'
   async function ensurePat() {
     if (!run) return null;
     if (token) return token;
-    // Establish session first in case PAT creation requires it
-    await client.request('/auth/login', {
+  // Ensure user exists (idempotent)
+  await client.request('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email: TEST_USER.email, name: TEST_USER.name, password: TEST_USER.password })
+    });
+  // Establish session
+  const login = await client.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email: TEST_USER.email, password: TEST_USER.password })
     });
-    const out = await client.request('/auth/pat', { method: 'POST', body: JSON.stringify(TEST_PAT) });
-    if (out.res.status === 201) token = out.body.token;
+  expect([200]).toContain(login.res.status);
+  // Create PAT via session
+  const out = await client.request('/auth/pat', { method: 'POST', body: JSON.stringify(TEST_PAT) });
+  if (out.res.status === 201) token = out.body.token;
     return token;
   }
 
@@ -34,6 +41,7 @@ describe(run ? 'Epic 3 - Repos API (MVP)' : 'Epic 3 - Repos API (MVP) [SKIPPED]'
     if (res.status === 201) {
       expect(body?.name).toBe(TEST_REPO.name);
       expect(body?.path).toMatch(/\.git$/);
+      // Optional: HEAD request to file URL isn't possible; rely on API's returned path shape for now.
     }
   });
 
@@ -82,7 +90,7 @@ describe(run ? 'Epic 3 - Repos API (MVP)' : 'Epic 3 - Repos API (MVP) [SKIPPED]'
   it('archives/deletes a repository', async () => {
     if (!run) return expect(true).toBe(true);
     const pat = await ensurePat();
-    const del = await client.request(`/repos/${encodeURIComponent(TEST_REPO.name)}`, {
+  const del = await client.request(`/repos/${encodeURIComponent(TEST_REPO.name)}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${pat}` }
     } as any);

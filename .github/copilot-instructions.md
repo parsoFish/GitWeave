@@ -92,6 +92,11 @@ When writing code or documentation with Copilot, ensure outputs:
 - Maintain mapping from tests to epic acceptance criteria in test descriptions. Prefer one spec per API surface or flow.
 - E2E tests may be skipped by default and gated by env flags until the local stack (docker compose) is available.
 
+### TDD Workflow Clarification
+- Add or change tests first. It’s expected that new tests fail initially.
+- Implement code changes next until the suite turns green.
+- Never modify tests and implementation in the same change.
+
 ### Test Contract Guardrail
 - Treat tests as the contract. When behavior needs to change, update tests first with a short justification that maps to the epic spec, then implement the code in a separate change.
 - Never land changes that modify tests and implementation together; keep them separate to avoid masking regressions.
@@ -145,3 +150,6 @@ Performance & DX:
 	- UI feature: affected files in `ui/src/**`, its API calls, and the corresponding backend endpoints in `app/src/**`.
 	- Scripts/tooling: `scripts/**`, related `package.json` scripts, and any files they orchestrate.
 - Before editing, scan for usages and contracts (tests, types, DTOs). After editing >3 files, pause and run build/tests.
+
+## Source Control Discipline
+- Do not make commits automatically. The maintainer controls when to commit and push. The assistant may prepare changes and validate locally, but final commit/push is user-driven.

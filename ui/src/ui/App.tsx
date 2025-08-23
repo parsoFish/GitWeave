@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 // Default to same-origin API path so cookies work in the browser via Vite proxy
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
@@ -23,6 +24,7 @@ export function App() {
   const [password, setPassword] = useState('devpass')
   const [name, setName] = useState('Owner')
   const [session, setSession] = useState<any>(null)
+  const [role, setRole] = useState<'owner'|'developer'>('developer')
   const [pat, setPat] = useState<string>('')
   const [pats, setPats] = useState<any[]>([])
   const [repoName, setRepoName] = useState('hello-world')
@@ -31,7 +33,7 @@ export function App() {
   const authHeader: Record<string, string> = useMemo(() => (pat ? { Authorization: `Bearer ${pat}` } : {} as Record<string, string>), [pat])
 
   async function signup() {
-    const out = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, name }) })
+    const out = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, name, role }) })
     if (out.res.status === 201 || out.res.status === 409) await refreshSession()
   }
   async function login() {
@@ -67,10 +69,26 @@ export function App() {
       <h1>GitWeave UI (MVP)</h1>
       <section style={{ marginBottom: 24 }}>
         <h2>Auth</h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input placeholder="email" value={email} onChange={e => setEmail(e.target.value)} />
-          <input placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-          <input placeholder="name" value={name} onChange={e => setName(e.target.value)} />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label htmlFor="auth-email" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>Email</span>
+            <input id="auth-email" placeholder="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </label>
+          <label htmlFor="auth-password" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>Password</span>
+            <input id="auth-password" placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          </label>
+          <label htmlFor="auth-name" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>Name</span>
+            <input id="auth-name" placeholder="name" value={name} onChange={e => setName(e.target.value)} />
+          </label>
+          <label htmlFor="auth-role" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>Role</span>
+            <select id="auth-role" value={role} onChange={e => setRole(e.target.value as any)}>
+              <option value="owner">owner</option>
+              <option value="developer">developer</option>
+            </select>
+          </label>
           <button onClick={signup}>Sign up</button>
           <button onClick={login}>Login</button>
           <button onClick={refreshSession}>Session</button>
@@ -98,7 +116,11 @@ export function App() {
           <button onClick={listRepos}>List Repos</button>
         </div>
         <ul>
-          {repos.map(r => <li key={r.name}>{r.name} — {r.visibility}</li>)}
+          {repos.map(r => (
+            <li key={r.name}>
+              <Link to={`/repos/${encodeURIComponent(r.name)}`}>{r.name}</Link> — {r.visibility}
+            </li>
+          ))}
         </ul>
       </section>
     </div>
