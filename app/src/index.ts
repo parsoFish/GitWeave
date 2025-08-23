@@ -45,7 +45,7 @@ async function loadState() {
     const raw = await fs.readFile(STATE_PATH, 'utf8');
     const parsed = JSON.parse(raw || '{}');
     state.users = Array.isArray(parsed.users) ? parsed.users : [];
-    state.pats = Array.isArray(parsed.pats) ? parsed.pats : [];
+  state.pats = Array.isArray(parsed.pats) ? parsed.pats.filter((p: any) => !p.revoked_at) : [];
     state.sshKeys = Array.isArray(parsed.sshKeys) ? parsed.sshKeys : [];
     state.repos = Array.isArray(parsed.repos) ? parsed.repos : [];
     state.branchRules = parsed.branchRules && typeof parsed.branchRules === 'object' ? parsed.branchRules : {};
@@ -85,6 +85,24 @@ app.use(cors({
 const API_BASE = '/api/v1';
 const COOKIE_SECURE = process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production';
 const REPOS_ROOT = process.env.REPOS_ROOT || path.join(DATA_DIR, 'repos');
+
+// Resolve a repository filesystem path, healing stale absolute paths from other environments
+async function resolveRepoFsPath(repo: { name: string; path: string }): Promise<string> {
+  try {
+    await fs.access(repo.path);
+    return repo.path;
+  } catch {}
+  const alt = path.join(REPOS_ROOT, `${repo.name}.git`);
+  try {
+    await fs.access(alt);
+    // Heal state to new path for future calls
+    repo.path = alt;
+    void saveState();
+    return alt;
+  } catch {}
+  // As a last resort, return original; callers may surface a clear error
+  return repo.path;
+}
 
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
@@ -199,15 +217,17 @@ app.post(`${API_BASE}/auth/pat`, async (req: any, res) => {
 
 app.get(`${API_BASE}/auth/pat`, requireAuth, (req: any, res) => {
   const user = req.user;
-  const list = state.pats.filter((p) => p.user_id === user.id).map((p) => ({ id: p.id, name: p.name, token_prefix: p.token_prefix, created_at: p.created_at, last_used_at: p.last_used_at }));
+  const list = state.pats
+    .filter((p) => p.user_id === user.id && !p.revoked_at)
+    .map((p) => ({ id: p.id, name: p.name, token_prefix: p.token_prefix, created_at: p.created_at, last_used_at: p.last_used_at }));
   res.json({ tokens: list });
 });
 
 app.delete(`${API_BASE}/auth/pat/:id`, requireAuth, async (req: any, res) => {
   const user = req.user;
-  const p = state.pats.find((x) => x.id === req.params.id && x.user_id === user.id);
-  if (!p) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'token not found' } });
-  p.revoked_at = new Date().toISOString();
+  const idx = state.pats.findIndex((x) => x.id === req.params.id && x.user_id === user.id);
+  if (idx === -1) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'token not found' } });
+  state.pats.splice(idx, 1);
   await saveState();
   res.status(204).end();
 });
@@ -318,18 +338,24 @@ app.post(`${API_BASE}/repos`, async (req, res) => {
   res.status(201).json(repo);
 });
 
-app.get(`${API_BASE}/repos`, (req, res) => {
+app.get(`${API_BASE}/repos`, async (req, res) => {
   const u = authUserFromRequest(req);
   if (!u) return res.status(401).json({ error: { code: 'UNAUTH', message: 'Auth required' } });
-  res.json({ repos: state.repos.map((r) => ({ name: r.name, visibility: r.visibility, path: r.path })) });
+  const mapped = [] as any[];
+  for (const r of state.repos) {
+    const p = await resolveRepoFsPath(r);
+    mapped.push({ name: r.name, visibility: r.visibility, path: p });
+  }
+  res.json({ repos: mapped });
 });
 
-app.get(`${API_BASE}/repos/:name`, (req, res) => {
+app.get(`${API_BASE}/repos/:name`, async (req, res) => {
   const u = authUserFromRequest(req);
   if (!u) return res.status(401).json({ error: { code: 'UNAUTH', message: 'Auth required' } });
   const repo = state.repos.find((r) => r.name === req.params.name);
   if (!repo) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Repo not found' } });
-  res.json({ name: repo.name, visibility: repo.visibility, path: repo.path });
+  const p = await resolveRepoFsPath(repo);
+  res.json({ name: repo.name, visibility: repo.visibility, path: p });
 });
 
 app.put(`${API_BASE}/repos/:name/branches/rules`, (req, res) => {
@@ -359,7 +385,8 @@ app.delete(`${API_BASE}/repos/:name`, async (req, res) => {
   if (idx === -1) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Repo not found' } });
   const [repo] = state.repos.splice(idx, 1);
   try {
-    await fs.rm(repo.path, { recursive: true, force: true });
+    const p = await resolveRepoFsPath(repo);
+    await fs.rm(p, { recursive: true, force: true });
   } catch {}
   await saveState();
   res.status(204).end();
@@ -371,12 +398,13 @@ app.get(`${API_BASE}/repos/:name/tree`, async (req, res) => {
   if (!u) return res.status(401).json({ error: { code: 'UNAUTH', message: 'Auth required' } });
   const repo = state.repos.find((r) => r.name === req.params.name);
   if (!repo) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Repo not found' } });
+  const repoPath = await resolveRepoFsPath(repo);
   const qref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
   const qpath = typeof req.query.path === 'string' ? req.query.path : '';
-  const ref = await resolveRef(repo.path, qref);
+  const ref = await resolveRef(repoPath, qref);
   try {
     const spec = qpath ? `${ref}:${qpath.replace(/^\/+|\/+$/g, '')}` : ref;
-    const { stdout } = await execGit(['ls-tree', '-z', '-l', spec], repo.path);
+    const { stdout } = await execGit(['ls-tree', '-z', '-l', spec], repoPath);
     const entries: any[] = [];
     if (stdout) {
       const parts = stdout.split('\u0000').filter(Boolean);
@@ -394,7 +422,7 @@ app.get(`${API_BASE}/repos/:name/tree`, async (req, res) => {
     entries.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'tree' ? -1 : 1));
     res.json({ ref, path: qpath || '', entries });
   } catch (e: any) {
-    return res.status(400).json({ error: { code: 'GIT_ERROR', message: e?.stderr || e?.message || 'Failed to list tree' } });
+  return res.status(400).json({ error: { code: 'GIT_ERROR', message: e?.stderr || e?.message || 'Failed to list tree' } });
   }
 });
 
@@ -403,14 +431,15 @@ app.get(`${API_BASE}/repos/:name/blob`, async (req, res) => {
   if (!u) return res.status(401).json({ error: { code: 'UNAUTH', message: 'Auth required' } });
   const repo = state.repos.find((r) => r.name === req.params.name);
   if (!repo) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Repo not found' } });
+  const repoPath = await resolveRepoFsPath(repo);
   const qref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
   const qpath = typeof req.query.path === 'string' ? req.query.path : '';
   if (!qpath) return res.status(400).json({ error: { code: 'BAD_REQ', message: 'path required' } });
-  const ref = await resolveRef(repo.path, qref);
+  const ref = await resolveRef(repoPath, qref);
   try {
     const spec = `${ref}:${qpath.replace(/^\/+|\/+$/g, '')}`;
     // Use show to respect textconv; limit size implicitly by client usage
-    const { stdout } = await execGit(['show', '--no-color', spec], repo.path);
+    const { stdout } = await execGit(['show', '--no-color', spec], repoPath);
     // Basic heuristic: if contains \u0000, treat as binary and return base64
     if (stdout.includes('\u0000')) {
       const buf = Buffer.from(stdout, 'binary');
@@ -418,7 +447,7 @@ app.get(`${API_BASE}/repos/:name/blob`, async (req, res) => {
     }
     res.json({ ref, path: qpath, encoding: 'utf8', content: stdout });
   } catch (e: any) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND', message: e?.stderr || e?.message || 'Blob not found' } });
+  return res.status(404).json({ error: { code: 'NOT_FOUND', message: e?.stderr || e?.message || 'Blob not found' } });
   }
 });
 
@@ -428,7 +457,8 @@ app.get(`${API_BASE}/repos/:name/default-branch`, async (req, res) => {
   const repo = state.repos.find((r) => r.name === req.params.name);
   if (!repo) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Repo not found' } });
   try {
-    const { stdout } = await execGit(['symbolic-ref', '-q', '--short', 'HEAD'], repo.path);
+    const repoPath = await resolveRepoFsPath(repo);
+    const { stdout } = await execGit(['symbolic-ref', '-q', '--short', 'HEAD'], repoPath);
     const br = stdout.trim() || 'main';
     res.json({ defaultBranch: br });
   } catch {
@@ -442,6 +472,8 @@ void (async () => {
   await ensureDataDir();
   try { await fs.mkdir(REPOS_ROOT, { recursive: true }); } catch {}
   await loadState();
+  // Persist any on-load cleanup (e.g., drop revoked PATs) back to disk
+  await saveState();
   app.listen(port, () => {
     console.log(`GitWeave app up on :${port}`);
   });

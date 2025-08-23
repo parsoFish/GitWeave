@@ -1,44 +1,32 @@
-version: '3.8'
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: gitweave
-      POSTGRES_PASSWORD: gitweave
-      POSTGRES_DB: gitweave
-    ports: ["5432:5432"]
-    volumes:
-      - gw_db:/var/lib/postgresql/data
-    # Note: the current API uses in-memory storage. DB wiring will be added per epics.
-
   api:
-    image: node:22-alpine
+    image: node:22-bookworm-slim
+    user: root
     working_dir: /workspace
     environment:
       NODE_ENV: development
       PORT: 8080
       COOKIE_SECURE: '0'
+      # Store repos under a dedicated volume path inside the container
       REPOS_ROOT: /data/repos
-      # DB_URL: postgres://gitweave:gitweave@db/gitweave  # reserved for future
-    command: sh -c "npm --prefix app ci && npm --prefix app run dev"
-    ports: ["8080:8080"]
-    depends_on:
-      - db
+    command: sh -c "apt-get update && apt-get install -y git && npm --prefix app ci && npm --prefix app run dev"
+    # Do not publish API port to host; UI proxies internally to avoid host port conflicts
     volumes:
       - ./:/workspace
-      - ./data/repos:/data/repos
+      - ./app/data/repos:/data/repos
 
   ui:
     image: node:22-alpine
     working_dir: /workspace
     environment:
       NODE_ENV: development
+      # Point Vite proxy at the API service name inside Compose
+      VITE_API_PROXY_TARGET: http://api:8080
     command: sh -c "npm --prefix ui ci && npm --prefix ui run dev -- --host"
-    ports: ["5173:5173"]
+    ports:
+      - "5173:5173"
     depends_on:
       - api
     volumes:
       - ./:/workspace
 
-volumes:
-  gw_db:

@@ -38,12 +38,24 @@ npm --prefix ui install
 ```
 
 ## Run (dev)
+### Option A: Docker (recommended)
 ```powershell
-# Start API (http://localhost:8080) + UI (http://localhost:5173)
-npm run dev
+npm run dev:docker
 ```
-- UI proxies `/api` → `http://localhost:8080`
-- API readiness: `GET http://localhost:8080/healthz` → `{ status: "ok" }`
+- UI available at http://localhost:5173 (proxies `/api` → internal `http://api:8080`)
+- API is internal to Compose; health: `GET http://localhost:5173/api/healthz`
+
+Bring the stack down:
+```powershell
+npm run down:docker
+```
+
+### Option B: Local processes (legacy)
+Use only if not running via Docker. Start API and UI separately:
+```powershell
+npm --prefix app run dev; npm --prefix ui run dev
+```
+UI proxies `/api` → `http://localhost:8080`.
 
 ## Try it
 1) Sign up (first user becomes owner internally; current tests default role display is `developer` on signup response)

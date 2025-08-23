@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import { API_BASE_URL, RUN_API_TESTS, TEST_REPO, TEST_PAT, TEST_USER } from '../utils/env'
 import { HttpClient } from '../utils/http'
 import { promises as fs } from 'node:fs'
@@ -20,6 +20,7 @@ async function execGit(args: string[], cwd?: string) {
 describe(run ? 'Epic 3 - Repos API: tree/blob browsing (MVP)' : 'Epic 3 - Repos API: tree/blob browsing (MVP) [SKIPPED]', () => {
   const client = new HttpClient(API_BASE_URL)
   let token: string | null = null
+  let createdPatId: string | null = null
 
   async function ensurePat() {
     if (!run) return null
@@ -31,9 +32,27 @@ describe(run ? 'Epic 3 - Repos API: tree/blob browsing (MVP)' : 'Epic 3 - Repos 
     const out = await client.request('/auth/pat', { method: 'POST', body: JSON.stringify(TEST_PAT) })
     expect([201, 409]).toContain(out.res.status)
     token = out.body?.token || token
+    if (out.res.status === 201) {
+      createdPatId = out.body?.id || createdPatId
+    }
     expect(token).toBeTruthy()
     return token
   }
+
+  // Revoke the PAT created by this suite to avoid accumulation
+  afterAll(async () => {
+    if (!run) return
+    if (!createdPatId) return
+    try {
+  const headers: any = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+  const del = await client.request(`/auth/pat/${encodeURIComponent(createdPatId)}`, { method: 'DELETE', headers } as any)
+      // 204 expected; allow 404 if already removed
+      expect([204, 404]).toContain((del.res as any).status)
+    } catch {
+      // best-effort
+    }
+  })
 
   it('lists tree entries and fetches blob content after seeding a commit', async () => {
     if (!run) return expect(true).toBe(true)

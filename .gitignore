@@ -1,6 +1,8 @@
 app/data/
+data/
 node_modules/
 .env
 .env.*
 dist/
 coverage/
+**/*.tsbuildinfo

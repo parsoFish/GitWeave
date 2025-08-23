@@ -20,9 +20,9 @@ async function api(path: string, init?: RequestInit) {
 }
 
 export function App() {
-  const [email, setEmail] = useState('owner@example.com')
-  const [password, setPassword] = useState('devpass')
-  const [name, setName] = useState('Owner')
+  const [email, setEmail] = useState('david.g.parsonson@gmail.com')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('David')
   const [session, setSession] = useState<any>(null)
   const [role, setRole] = useState<'owner'|'developer'>('developer')
   const [pat, setPat] = useState<string>('')

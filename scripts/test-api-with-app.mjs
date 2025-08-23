@@ -38,6 +38,45 @@ async function waitForServer(url, timeoutMs = 30000, intervalMs = 500) {
 }
 
 async function main() {
+  // Remove stale lockfile entries that reference the old local package (prevents .gitweave* temp dirs)
+  try {
+    const { promises: fsp } = await import('node:fs');
+    const { join } = await import('node:path');
+    const lockPath = join(process.cwd(), 'app', 'package-lock.json');
+    const txt = await fsp.readFile(lockPath, 'utf8').catch(() => '');
+    if (txt.includes('"gitweave": "file:.."') || txt.includes('node_modules/gitweave')) {
+      await fsp.rm(lockPath, { force: true });
+    }
+  } catch {}
+
+  // Pre-clean any leftover local-file package artifacts that can cause EACCES on Windows
+  try {
+    const { promises: fsp } = await import('node:fs');
+    const { join } = await import('node:path');
+    const nm = join(process.cwd(), 'app', 'node_modules');
+    const entries = await fsp.readdir(nm, { withFileTypes: true }).catch(() => []);
+    for (const ent of entries) {
+      const name = ent.name;
+      if (name === 'gitweave' || name.startsWith('.gitweave')) {
+        const p = join(nm, name);
+        await fsp.rm(p, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  } catch {}
+
+  // 0) Ensure app dependencies are installed (dev deps include typescript/tsx)
+  // Only use `npm ci` when a lockfile exists; otherwise use `npm install` to avoid EUSAGE noise.
+  await new Promise(async (resolve) => {
+    const { promises: fsp } = await import('node:fs');
+    const { join } = await import('node:path');
+    const lockPath = join(process.cwd(), 'app', 'package-lock.json');
+    const hasLock = await fsp.access(lockPath).then(() => true).catch(() => false);
+    const args = hasLock ? ['--prefix', 'app', 'ci', '--no-fund', '--no-audit']
+                         : ['--prefix', 'app', 'install', '--no-fund', '--no-audit'];
+    const p = npmSpawn(args);
+    p.on('exit', (code) => resolve());
+  });
+
   // 1) Build the app
   await new Promise((resolve, reject) => {
     const p = npmSpawn(['--prefix', 'app', 'run', 'build']);
@@ -73,7 +112,7 @@ async function main() {
     // Ensure env flags for API tests
     const testEnv = { ...process.env, RUN_API_TESTS: '1', API_BASE_URL };
     await new Promise((resolve, reject) => {
-      const t = npmSpawn(['run', 'test:api'], { env: testEnv });
+  const t = npmSpawn(['run', 'test:api'], { env: testEnv });
       t.on('error', reject);
       t.on('exit', (code) => {
         if (code === 0) resolve();
