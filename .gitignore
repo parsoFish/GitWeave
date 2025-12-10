@@ -1,8 +1,6 @@
-app/data/
-data/
 node_modules/
+.DS_Store
 .env
-.env.*
+.vscode/
 dist/
 coverage/
-**/*.tsbuildinfo
