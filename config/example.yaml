@@ -1,0 +1,4 @@
+# Example Overlay Configuration
+policy:
+  enabled: true
+  enforcement: strict

@@ -1,0 +1,25 @@
+name: GitWeave Apply
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "config/**"
+  workflow_dispatch:
+
+jobs:
+  apply:
+    name: Apply Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply Overlays
+        run: |
+          echo "Applying configuration overlays..."
+          # Placeholder for actual logic (e.g., running a script or tool)
+          echo "Scanning config/ directory..."
+          ls -R config/
+          echo "Configuration applied successfully."

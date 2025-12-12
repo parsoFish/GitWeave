@@ -4,3 +4,19 @@ node_modules/
 .vscode/
 dist/
 coverage/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+
+# GitWeave
+.specify/memory/current_task.md
