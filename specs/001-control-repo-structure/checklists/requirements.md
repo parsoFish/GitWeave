@@ -32,5 +32,5 @@
 ## Notes
 
 - This feature defines the physical layout of the project, so specific directory names are required and not considered "implementation details" to avoid.
-- The `infra/` directory is required (FR-006), but its automation workflow is explicitly out of scope for this feature (deferred to Feature 005).
+- The `infra/` directory is required (FR-006), and its automation workflow (`gitweave-infra.yaml`) is now explicitly in scope (FR-007) to ensure separation of concerns.
 - The `gitweave-apply` workflow must be strictly scoped to `config/` to prevent accidental infrastructure changes.

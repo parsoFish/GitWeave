@@ -5,6 +5,12 @@
 **Status**: Draft  
 **Input**: User description: "Define the Control Repository structure. It must include a modules/ directory for templates, a config/ directory for overlays, an infra/ directory for Terraform bootstrap, and a GitHub Actions workflow to apply changes. It should also include a README.md explaining how to bootstrap a new org."
 
+## Clarifications
+
+### Session 2025-12-13
+- Q: Should the platform code be split across multiple repos or consolidated? → A: **Monorepo (Single Repo)**. All platform code (`modules/`, `config/`, `infra/`) lives in one `gitweave-control` repo.
+- Q: How should CI/CD workflows be structured? → A: **Separate Workflows**. `gitweave-infra.yaml` triggers on `infra/**` (Terraform), `gitweave-apply.yaml` triggers on `config/**` (Content).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Bootstrap New Organization (Priority: P1)
@@ -86,6 +92,7 @@ As a Platform Engineer, I want a dedicated `infra/` directory to store the Terra
 - **FR-004**: The `gitweave-apply.yaml` workflow MUST be configured to trigger on `push` to `main` (filtered to `config/**` paths) and `workflow_dispatch`.
 - **FR-005**: The repository MUST have a `README.md` (updated from the current one) that explicitly documents the folder structure (`modules/`, `config/`) and the Bootstrap process.
 - **FR-006**: The repository MUST have an `infra/` directory at the root for storing Terraform Bootstrap configuration.
+- **FR-007**: The repository MUST have a `.github/workflows/gitweave-infra.yaml` workflow skeleton configured to trigger on `push` to `main` (filtered to `infra/**` paths) and `workflow_dispatch`.
 
 ### Key Entities
 
