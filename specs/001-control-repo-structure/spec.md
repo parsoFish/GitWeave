@@ -23,7 +23,7 @@ As a Platform Engineer, I want to clone the control repository into a new GitHub
 
 **Acceptance Scenarios**:
 
-1. **Given** a fresh clone of the repo, **When** I inspect the root directory, **Then** I see `modules/`, `config/`, `.github/workflows/`, and `README.md`.
+1. **Given** a fresh clone of the repo, **When** I inspect the root directory, **Then** I see `modules/`, `config/`, `infra/`, `metrics/`, `.github/workflows/`, and `README.md`.
 2. **Given** the `README.md`, **When** I read the "Bootstrap" section, **Then** I see clear steps on how to configure the initial provider binding.
 
 ---
@@ -82,6 +82,20 @@ As a Platform Engineer, I want a dedicated `infra/` directory to store the Terra
 
 1. **Given** the control repo, **When** I look for the location to store Terraform bootstrap code, **Then** I find the `infra/` directory.
 
+---
+
+### User Story 6 - Metrics Server Directory (Priority: P2)
+
+As a Platform Engineer, I want a dedicated `metrics/` directory to store the source code for the Metrics Observer service (Go/Python), so that the observability component is versioned alongside the platform configuration.
+
+**Why this priority**: Required to support Feature 004 (Metrics Observer) and keeps the custom service code organized.
+
+**Independent Test**: Verify that the `metrics/` directory exists.
+
+**Acceptance Scenarios**:
+
+1. **Given** the control repo, **When** I look for the location to store the Metrics Observer code, **Then** I find the `metrics/` directory.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -93,6 +107,7 @@ As a Platform Engineer, I want a dedicated `infra/` directory to store the Terra
 - **FR-005**: The repository MUST have a `README.md` (updated from the current one) that explicitly documents the folder structure (`modules/`, `config/`) and the Bootstrap process.
 - **FR-006**: The repository MUST have an `infra/` directory at the root for storing Terraform Bootstrap configuration.
 - **FR-007**: The repository MUST have a `.github/workflows/gitweave-infra.yaml` workflow skeleton configured to trigger on `push` to `main` (filtered to `infra/**` paths) and `workflow_dispatch`.
+- **FR-008**: The repository MUST have a `metrics/` directory at the root for storing the Metrics Observer source code.
 
 ### Key Entities
 
