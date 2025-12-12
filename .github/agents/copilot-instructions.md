@@ -4,10 +4,7 @@ Auto-generated from all feature plans. Last updated: 2025-12-13
 
 ## Active Technologies
 - HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client) (001-control-repo-structure)
-- Git Repository (Filesystem), Remote State (S3/GCS/Azure - TBD) (001-control-repo-structure)
 - Git Repository (Filesystem), Remote State (User Configured) (001-control-repo-structure)
-
-- HCL (Terraform), YAML, Go (Metrics Service - Tentative), Bash + GitHub Actions, Terraform CLI (001-control-repo-structure)
 
 ## Project Structure
 
@@ -18,15 +15,13 @@ tests/
 
 ## Commands
 
-# Add commands for HCL (Terraform), YAML, Go (Metrics Service - Tentative), Bash
+# Add commands for HCL (Terraform), YAML, Python, Bash
 
 ## Code Style
 
-HCL (Terraform), YAML, Go (Metrics Service - Tentative), Bash: Follow standard conventions
+HCL (Terraform), YAML, Python, Bash: Follow standard conventions
 
 ## Recent Changes
-- 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
-- 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
 - 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
 
 
