@@ -34,5 +34,6 @@
 - Feature is technically specific (Schema definition), so some technical terms are unavoidable.
 - Success Criteria added to ensure measurable outcomes.
 - **Unified Provisioning**: Schema explicitly supports Terraform as the single orchestrator for both Infra and Content (Copier).
+- **Atomic Operations**: Terraform triggers Copier directly (FR-007), ensuring infra and content are always in sync.
 - **Module Versioning**: Schema supports `version` pinning for modules to enable controlled updates.
 - **Secrets**: Explicitly mapped to `github_actions_secret` resources.

@@ -5,6 +5,12 @@
 **Status**: Draft  
 **Input**: User description: "Define the Overlay Config Schema. This is the YAML schema for files in config/repos/. It must map a repository (owner/name) to a list of applied modules (with their input values and optional version pins) and define environment-specific settings. Terraform will be the unified orchestrator, using this config to provision both infrastructure (GitHub Provider) and content (Copier)."
 
+## Clarifications
+
+### Session 2025-12-13
+- Q: How should Terraform trigger Copier execution? → A: **Terraform Trigger (Unified)**. Terraform uses a `null_resource` or custom provider to run Copier locally during the apply phase.
+    - *Note*: Investigate if a community "Copier Provider" exists; otherwise, fallback to `null_resource` wrapping the CLI.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Define Repository Identity & Modules (Priority: P1)
@@ -66,6 +72,7 @@ As a Platform Engineer, I want the overlay config to map cleanly to a unified Te
 - **FR-004**: The schema MUST support an `environments` map or list, allowing definitions for standard (static) and dynamic (pattern-based) environments.
 - **FR-005**: Environment definitions MUST support configuring `protection_rules` (reviewers, checks) and `secrets` (map of keys to values or references), which map to `github_actions_secret` resources in Terraform.
 - **FR-006**: The schema structure MUST be compatible with transformation into a unified Terraform variable structure that supports both infrastructure provisioning (GitHub Provider) and content generation (Copier orchestration).
+- **FR-007**: The system MUST use Terraform to trigger the Copier execution (via `null_resource` or provider) to ensure infrastructure and content are provisioned in a single atomic operation.
 
 ### Key Entities
 
