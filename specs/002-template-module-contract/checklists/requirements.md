@@ -34,3 +34,4 @@
 - The spec correctly identifies the need for a standard metadata format (Contract) and a templating engine (Implementation).
 - Switched from Cookiecutter to Copier to support lifecycle management and non-destructive updates.
 - Mandated CalVer versioning and PR-based updates for "Platform Push" capability.
+- Clarified that updates are triggered by the Control Repo pipeline, ensuring automation while retaining reviewability via PRs.

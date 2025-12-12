@@ -5,6 +5,12 @@
 **Status**: Draft  
 **Input**: User description: "Define the Template Module Contract. A module is a directory in modules/ containing a copier.yaml metadata file and a content/ folder (files to copy or the actual templated component). It must support variable substitution (e.g. {{project_name}}) and lifecycle management (updates via PRs). We will use Copier as the engine to support composition and non-destructive updates. Versioning will follow CalVer (YYYYMMDD.Patch)."
 
+## Clarifications
+
+### Session 2025-12-13
+- Q: How should modules be versioned in the monorepo? → A: **Monorepo Versioning (Unified)**. A single CalVer tag (e.g., `v2025.12.13.1`) on the Control Repo applies to ALL modules simultaneously.
+- Q: How are updates propagated to consuming repositories? → A: **Pipeline-Driven Pull Requests**. Updating a module in the Control Repo triggers the `gitweave-apply` pipeline, which calculates diffs for consumers and opens Pull Requests.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Define Module Metadata (Priority: P1)
@@ -67,15 +73,16 @@ As a Platform Engineer, I want to update a repository's applied modules non-dest
 
 ### User Story 5 - Propagate Updates from Control Repo (Priority: P2)
 
-As a Platform Engineer, I want changes to modules in the Control Repo to trigger update Pull Requests on all consuming repositories, so that I can roll out standards across the organization efficiently.
+As a Platform Engineer, I want changes to modules in the Control Repo to automatically trigger the creation of update Pull Requests on all consuming repositories, so that I can roll out standards across the organization efficiently.
 
 **Why this priority**: Enables "Platform Push" updates, keeping the fleet consistent.
 
-**Independent Test**: Update a module in the Control Repo, tag a new version, and verify that a consuming repo receives a PR with the update.
+**Independent Test**: Update a module in the Control Repo, tag a new version, and verify that the CI pipeline runs and opens a PR on a consuming repo.
 
 **Acceptance Scenarios**:
 
-1. **Given** a module `lang-node` used by `repo-a`, **When** I update `lang-node` in the Control Repo and tag a new version (e.g., `20251212.1`), **Then** `repo-a` receives a Pull Request to upgrade to `20251212.1`.
+1. **Given** a module `lang-node` used by `repo-a`, **When** I update `lang-node` in the Control Repo and push, **Then** the `gitweave-apply` pipeline runs.
+2. **Then** `repo-a` receives a Pull Request to upgrade to the new version.
 
 ## Requirements *(mandatory)*
 
@@ -87,7 +94,8 @@ As a Platform Engineer, I want changes to modules in the Control Repo to trigger
 - **FR-004**: The system MUST support rendering a module to a target directory, substituting variables defined in the metadata.
 - **FR-005**: The system MUST support applying multiple modules sequentially to the same target directory (composition).
 - **FR-006**: The system MUST support updating an already-applied module, preserving user changes where possible (reconciliation).
-- **FR-007**: The system MUST support versioning of modules using CalVer (YYYYMMDD.Patch) tags on the Control Repo.
+- **FR-007**: The system MUST support versioning of modules using **Unified CalVer** (YYYYMMDD.Patch) tags on the Control Repo, where a single tag represents the version of ALL modules.
+- **FR-008**: The system MUST use the Control Repo's CI/CD pipeline to detect module changes and automatically generate Pull Requests on consuming repositories to apply those updates.
 
 ### Key Entities
 
