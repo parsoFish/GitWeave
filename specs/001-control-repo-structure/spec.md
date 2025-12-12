@@ -86,7 +86,7 @@ As a Platform Engineer, I want a dedicated `infra/` directory to store the Terra
 
 ### User Story 6 - Metrics Server Directory (Priority: P2)
 
-As a Platform Engineer, I want a dedicated `metrics/` directory to store the source code for the Metrics Observer service (Go/Python), so that the observability component is versioned alongside the platform configuration.
+As a Platform Engineer, I want a dedicated `metrics/` directory to store the source code for the Metrics Observer service (Python), so that the observability component is versioned alongside the platform configuration.
 
 **Why this priority**: Required to support Feature 004 (Metrics Observer) and keeps the custom service code organized.
 

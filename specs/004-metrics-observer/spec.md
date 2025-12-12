@@ -77,7 +77,7 @@ As a Platform Engineer, I want clear documentation and examples for deploying th
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST be a standalone containerized application (e.g., Go/Rust/Python) capable of receiving HTTP Webhooks.
+- **FR-001**: The system MUST be a standalone containerized application (Python) capable of receiving HTTP Webhooks.
 - **FR-002**: The system MUST ingest GitHub Webhook events for `deployment_status`, `pull_request`, and `push`.
 - **FR-003**: The system MUST expose raw metric primitives (Counters, Histograms) to allow downstream calculation of DORA metrics. It MUST NOT perform complex time-window aggregation internally.
 - **FR-004**: The system MUST expose a `/metrics` endpoint compatible with Prometheus scraping.

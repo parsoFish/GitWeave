@@ -27,8 +27,8 @@ HCL (Terraform), YAML, Go (Metrics Service - Tentative), Bash: Follow standard c
 ## Recent Changes
 - 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
 - 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
+- 001-control-repo-structure: Added HCL (Terraform), YAML, Python 3.11+ (Metrics Service), Bash + GitHub Actions, Terraform CLI, Python (requests, prometheus_client)
 
-- 001-control-repo-structure: Added HCL (Terraform), YAML, Go (Metrics Service - Tentative), Bash + GitHub Actions, Terraform CLI
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
