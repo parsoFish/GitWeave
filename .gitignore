@@ -20,3 +20,6 @@ venv/
 
 # GitWeave
 .specify/memory/current_task.md
+LOCAL_SETUP.md
+.envrc
+.direnv/

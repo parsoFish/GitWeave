@@ -63,6 +63,13 @@
 
 - [x] T017 Verify directory structure against `specs/001-control-repo-structure/contracts/directory-structure.md`
 
+## Phase 10: TDD & Regression Tests
+*Goal: Establish repeatable automated tests.*
+
+- [x] T018 Create `tests/test_structure.py` to enforce directory contract
+- [x] T019 Create `metrics/tests/` and basic unit tests for Metrics Service
+- [x] T020 Add `pytest` to `metrics/requirements.txt`
+
 ## Dependencies
 
 ```mermaid
