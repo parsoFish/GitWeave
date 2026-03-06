@@ -80,11 +80,53 @@ A lightweight component (Service or Workflow) that:
 ## 📂 Project Structure
 
 ```text
-.specify/       # SpecKit configuration and memory
-specs/          # Feature specifications (SpecKit)
-modules/        # (Future) Template modules
-config/         # (Future) Org and Repo configuration
-terraform/      # (Future) Infrastructure definitions
-.github/        # Workflows and Agent prompts
-README.md       # This file
+.
+├── .github/
+│   └── workflows/
+│       ├── gitweave-apply.yaml  # Applies config/ changes
+│       └── gitweave-infra.yaml  # Applies infra/ changes
+├── config/                      # Overlay Configuration (YAML)
+├── infra/                       # Terraform Bootstrap (Org Baseline)
+├── metrics/                     # Metrics Observer Service (Python)
+├── modules/                     # Template Modules
+├── scripts/                     # Helper scripts
+├── specs/                       # Feature specifications (SpecKit)
+├── .specify/                    # SpecKit configuration
+└── README.md                    # This file
 ```
+
+## 🚀 Bootstrap
+
+To initialize a new GitWeave Control Repository:
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/YOUR_ORG/gitweave-control.git
+    cd gitweave-control
+    ```
+
+2.  **Run Bootstrap Script**
+    This script initializes the local environment and checks prerequisites.
+    ```bash
+    ./scripts/bootstrap.sh
+    ```
+
+3.  **Initialize Infrastructure**
+    Navigate to `infra/` to set up the organization baseline.
+    **Note**: You must configure your remote state backend (S3, GCS, etc.) in `main.tf` or `backend.tf` before running this in production. For local testing, you can skip backend configuration.
+    **Auth**: Ensure `GITHUB_TOKEN` is set or you are logged in via `gh auth login` so Terraform can manage the organization.
+    ```bash
+    cd infra
+    terraform init
+    terraform apply
+    ```
+
+4.  **Push to GitHub**
+    ```bash
+    git add .
+    git commit -m "chore: bootstrap control repo"
+    git push origin main
+    ```
+
+5.  **Verify Workflows**
+    Check the "Actions" tab in GitHub to ensure `gitweave-infra` and `gitweave-apply` are running correctly.
