@@ -15,6 +15,14 @@ name: GitWeave Apply
         description: "Run in dry-run mode (show changes without applying)"
         type: boolean
         default: false
+      target_env:
+        description: "Target environment name (e.g. staging, prod, feature/*). Leave empty to use base variables only."
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   apply:
@@ -26,22 +34,41 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: pip install copier pyyaml
 
+      - name: Post Overlay Dry-run Diff as PR Comment
+        if: github.event_name == 'pull_request'
+        run: |
+          python scripts/dry-run-overlays.py \
+            --pr-number ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --config-dir config/repos/ \
+            --modules-dir modules/
+
       - name: Apply Overlays (dry-run on PR)
         if: github.event_name == 'pull_request' || inputs.dry_run == true
         run: |
-          python scripts/apply-overlays.py --dry-run --config-dir config/repos/
+          TARGET_ENV="${{ inputs.target_env }}"
+          ENV_FLAG=""
+          if [ -n "$TARGET_ENV" ]; then
+            ENV_FLAG="--env $TARGET_ENV"
+          fi
+          python scripts/apply-overlays.py --dry-run --config-dir config/repos/ $ENV_FLAG
 
       - name: Apply Overlays
         if: github.event_name == 'push' && inputs.dry_run != true
         run: |
-          python scripts/apply-overlays.py --config-dir config/repos/
+          TARGET_ENV="${{ inputs.target_env }}"
+          ENV_FLAG=""
+          if [ -n "$TARGET_ENV" ]; then
+            ENV_FLAG="--env $TARGET_ENV"
+          fi
+          python scripts/apply-overlays.py --config-dir config/repos/ $ENV_FLAG
