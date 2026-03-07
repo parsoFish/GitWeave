@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     defaults:
       run:
         working-directory: infra
@@ -38,13 +39,76 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -input=false -out=tfplan
+        continue-on-error: true
+        run: |
+          set +e
+          terraform plan -input=false -detailed-exitcode -out=tfplan
+          TF_EXIT_CODE=$?
+          echo "TF_EXIT_CODE=${TF_EXIT_CODE}" >> "${GITHUB_ENV}"
+          exit ${TF_EXIT_CODE}
+
+      - name: Show Terraform Plan Output
+        if: always()
+        run: |
+          if [ -f tfplan ]; then
+            terraform show -no-color tfplan > plan_output.txt
+          else
+            echo "Terraform plan failed to generate a plan file." > plan_output.txt
+          fi
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: infra/tfplan
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Skip comment when no changes (TF_EXIT_CODE=0 means no diff)
+          if [ "${TF_EXIT_CODE}" = "0" ]; then
+            echo "No changes detected (TF_EXIT_CODE=0), skipping PR comment."
+            exit 0
+          fi
+
+          # Read plan output and truncate at 65000 chars with notice
+          PLAN_OUTPUT=$(cat plan_output.txt 2>/dev/null || echo "No plan output available.")
+          if [ ${#PLAN_OUTPUT} -gt 65000 ]; then
+            PLAN_OUTPUT="${PLAN_OUTPUT:0:65000}"$'\n...\n[Output truncated]'
+          fi
+
+          # Build the comment body using the gitweave-tf-plan marker for deduplication
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMENT_BODY=$(cat <<BODY
+          <!-- gitweave-tf-plan -->
+          <details><summary>Terraform Plan (exit ${TF_EXIT_CODE})</summary>
+
+          ${PLAN_OUTPUT}
+
+          </details>
+
+          **Run:** ${RUN_URL}
+          **Commit:** ${GITHUB_SHA}
+          BODY
+          )
+
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Search for an existing gitweave-tf-plan comment by the unique marker
+          COMMENT_ID=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains("gitweave-tf-plan")) | .id' | head -1)
+
+          if [ -n "${COMMENT_ID}" ]; then
+            # Update existing comment via PATCH to avoid duplicating comments
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              --field body="${COMMENT_BODY}"
+          else
+            # Create new comment via POST when none exists yet
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --field body="${COMMENT_BODY}"
+          fi
 
   apply:
     name: Terraform Apply
