@@ -10,6 +10,7 @@ name: GitWeave Infrastructure
     branches: ["main"]
     paths:
       - "infra/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,6 +39,8 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
+        env:
+          TF_VAR_github_org: ${{ github.repository_owner }}
         run: terraform plan -input=false -out=tfplan
 
       - name: Upload plan artifact
@@ -76,4 +79,6 @@ jobs:
           path: infra
 
       - name: Terraform Apply
+        env:
+          TF_VAR_github_org: ${{ github.repository_owner }}
         run: terraform apply -input=false tfplan
