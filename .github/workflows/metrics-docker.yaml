@@ -1,0 +1,74 @@
+name: Metrics Docker Build and Push
+
+on:
+  pull_request:
+    branches:
+      - "**"
+    paths:
+      - "metrics/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "metrics/**"
+
+# Least-privilege permissions: read source, write packages (GHCR push on main only).
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: metrics/Dockerfile
+
+      - name: Log in to GitHub Container Registry
+        # Only authenticate on main merges where we will actually push.
+        # PRs from forks do not have packages: write access to GITHUB_TOKEN.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t gitweave-metrics:ci \
+            -f metrics/Dockerfile \
+            metrics/
+
+      - name: Run Trivy vulnerability scan
+        # Scan the locally built image; fail immediately on CRITICAL CVEs.
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gitweave-metrics:ci
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: Check image size (must be under 300 MB)
+        run: |
+          size=$(docker image inspect gitweave-metrics:ci --format '{{.Size}}')
+          max_size=$((300 * 1024 * 1024))
+          echo "Image size: $((size / 1024 / 1024)) MB (limit: 300 MB)"
+          if [ "$size" -gt "$max_size" ]; then
+            echo "ERROR: Image size $((size / 1024 / 1024)) MB exceeds 300 MB limit"
+            exit 1
+          fi
+
+      - name: Push image to GitHub Container Registry
+        # Push only on merge to main — PRs build and scan only.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag gitweave-metrics:ci ghcr.io/${{ github.repository_owner }}/gitweave-metrics:latest
+          docker push ghcr.io/${{ github.repository_owner }}/gitweave-metrics:latest
