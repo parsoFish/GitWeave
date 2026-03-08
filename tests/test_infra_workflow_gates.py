@@ -809,3 +809,48 @@ class TestNoMonolithicTerraformJob(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestApplyJobIfGuard(unittest.TestCase):
+    """apply job must have an explicit if: guard restricting it to push events on main."""
+
+    def setUp(self):
+        self.doc = _load_workflow()
+        self.apply_job = _find_job(self.doc, "apply")
+
+    def test_apply_job_has_if_condition(self):
+        """apply job must declare an if: condition to prevent running on PRs."""
+        if self.apply_job is None:
+            self.skipTest("apply job not found")
+        self.assertIn(
+            "if",
+            self.apply_job,
+            "apply job has no 'if:' condition. Without an if: guard the job runs "
+            "on every trigger including pull_request, which forces every PR through "
+            "the production environment approval gate.",
+        )
+
+    def test_apply_job_if_guard_restricts_to_push_event(self):
+        """apply job if: guard must check for push event type."""
+        if self.apply_job is None:
+            self.skipTest("apply job not found")
+        if_condition = str(self.apply_job.get("if", ""))
+        self.assertIn(
+            "push",
+            if_condition,
+            f"apply job if: guard is {if_condition!r} — it must check "
+            "'github.event_name == \"push\"' to prevent running on pull_request events.",
+        )
+
+    def test_apply_job_if_guard_restricts_to_main_ref(self):
+        """apply job if: guard must restrict to refs/heads/main to prevent apply on non-main branches."""
+        if self.apply_job is None:
+            self.skipTest("apply job not found")
+        if_condition = str(self.apply_job.get("if", ""))
+        self.assertIn(
+            "main",
+            if_condition,
+            f"apply job if: guard is {if_condition!r} — it must check "
+            "'github.ref == \"refs/heads/main\"' to prevent apply running on "
+            "non-main branch pushes or workflow_dispatch on feature branches.",
+        )
