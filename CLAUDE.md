@@ -34,16 +34,6 @@ Use **GitHub Packages** for artifact storage and **GitHub Secrets / OIDC** for s
 - No bare git hosting (no `/data/repos`)
 - No separate authentication surface (use GitHub IDP)
 
-## Development Workflow (SpecKit)
-
-This is a **SpecKit Workspace**. Development follows a structured specification workflow:
-
-1. **Specify**: Define a feature in `specs/<feature-id>/spec.md`
-2. **Plan**: Generate a technical implementation plan in `specs/<feature-id>/plan.md`
-3. **Implement**: Drive code generation from the spec+plan
-
-All specs live in `specs/`. Before implementing anything, check if a spec exists.
-
 ## Build & Test Commands
 
 ```bash
@@ -63,12 +53,6 @@ npm test                    # Unit tests (if applicable)
 ```
 modules/                    # Composable template modules (e.g., lang-node, workflows/ci-basic)
 config/repos/               # Overlay config: which templates apply to which repos
-specs/                      # SpecKit feature specifications
-  001-control-repo-structure/
-  002-template-module-contract/
-  003-overlay-config-schema/
-  004-metrics-observer/
-  005-terraform-bootstrap/
 infra/                      # Terraform for GitHub resource provisioning
 metrics/                    # DORA metrics aggregation (Prometheus/OTel format)
 schemas/                    # JSON schemas for config validation
