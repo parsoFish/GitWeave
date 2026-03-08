@@ -93,6 +93,7 @@ A lightweight component (Service or Workflow) that:
 ├── specs/                       # Feature specifications (SpecKit)
 ├── .specify/                    # SpecKit configuration
 └── README.md                    # This file
+
 ```
 
 ## 🚀 Bootstrap
@@ -161,4 +162,5 @@ Validate schema compliance:
 
 ```bash
 python scripts/validate_overlay_configs.py --config-dir config/repos/
+
 ```
