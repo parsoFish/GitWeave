@@ -9,7 +9,7 @@ Reads config/repos/*.yaml overlay configurations and applies each one by:
   4. Opening a PR via 'gh pr create'
 
 Usage:
-    python scripts/apply-overlays.py [--dry-run] [--config-dir PATH] [--modules-dir PATH]
+    python scripts/apply-overlays.py [--dry-run] [--config-dir PATH] [--modules-dir PATH] [--env NAME]
 
 Exit code is non-zero if any repository application fails.
 """
@@ -56,6 +56,22 @@ def load_overlay_configs(config_dir: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Variable merging
+# ---------------------------------------------------------------------------
+
+
+def merge_variables(base: dict, env_override: dict) -> dict:
+    """
+    Merge base variables with environment-specific overrides.
+
+    Environment values take precedence for matching keys; base values are
+    preserved for keys absent in env_override. Returns a new dict — neither
+    input is mutated.
+    """
+    return {**base, **env_override}
+
+
+# ---------------------------------------------------------------------------
 # Overlay application
 # ---------------------------------------------------------------------------
 
@@ -65,6 +81,7 @@ def apply_overlay(
     modules_dir: str,
     github_token: str,
     dry_run: bool = False,
+    env: str | None = None,
 ) -> dict:
     """
     Apply a single overlay configuration to its target repository.
@@ -83,11 +100,21 @@ def apply_overlay(
     modules_spec: list[dict] = config.get("spec", {}).get("modules") or []
     module_names: list[str] = [m["name"] for m in modules_spec if m.get("name")]
 
+    # Resolve variables: merge base variables with environment-specific overrides
+    base_variables: dict = config.get("spec", {}).get("variables") or {}
+    env_variables: dict = {}
+    if env:
+        environments = config.get("spec", {}).get("environments") or {}
+        env_config = environments.get(env) or {}
+        env_variables = env_config.get("variables") or {}
+    variables = merge_variables(base_variables, env_variables)
+
     if dry_run:
         return {
             "repo": repo_slug,
             "dry_run": True,
             "modules": module_names,
+            "env": env,
         }
 
     clone_url = f"https://x-access-token:{github_token}@github.com/{repo_slug}.git"
@@ -117,8 +144,11 @@ def apply_overlay(
         # Apply each module via copier
         for module_name in module_names:
             module_path = os.path.join(modules_dir, module_name)
+            data_flags: list[str] = []
+            for key, value in variables.items():
+                data_flags.extend(["--data", f"{key}={value}"])
             copier_result = subprocess.run(
-                ["copier", "copy", "--overwrite", "--defaults", module_path, workdir],
+                ["copier", "copy", "--overwrite", "--defaults", *data_flags, module_path, workdir],
                 capture_output=True,
                 text=True,
             )
@@ -220,6 +250,13 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="Directory containing GitWeave modules (default: modules/).",
     )
+    parser.add_argument(
+        "--env",
+        default=None,
+        metavar="NAME",
+        help="Target environment name (e.g. staging, production). "
+             "When specified, merges spec.environments.<NAME>.variables over spec.variables.",
+    )
     return parser
 
 
@@ -245,13 +282,15 @@ def main(argv: list[str] | None = None) -> int:
             modules_dir=args.modules_dir,
             github_token=github_token,
             dry_run=args.dry_run,
+            env=args.env,
         )
         results.append(result)
         repo = result.get("repo", "(unknown)")
         if result.get("dry_run"):
             modules = result.get("modules", [])
             modules_str = ", ".join(modules) if modules else "(none)"
-            print(f"[DRY-RUN] {repo}: would apply modules: {modules_str}")
+            env_label = f" (env: {result['env']})" if result.get("env") else ""
+            print(f"[DRY-RUN] {repo}: would apply modules: {modules_str}{env_label}")
         elif result.get("success"):
             print(f"[OK]      {repo}: PR opened successfully")
         else:
