@@ -30,10 +30,13 @@ jobs:
           terraform_wrapper: false
 
       - name: Install dependencies
-        run: pip install pytest pyyaml yamllint
+        run: pip install pytest pyyaml yamllint jsonschema
 
       - name: Run structural tests
-        run: pytest tests/test_structure.py
+        run: pytest tests/test_structure.py tests/test_overlay_schema.py
+
+      - name: Validate copier.yaml schema
+        run: pytest tests/test_copier_schema.py tests/test_copier_schema_ci.py
 
       - name: Lint workflow YAML files
         run: yamllint .github/workflows/
