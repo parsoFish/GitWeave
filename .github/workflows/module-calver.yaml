@@ -31,7 +31,9 @@ jobs:
       - name: Validate CalVer in copier.yaml for changed modules
         run: |
           set -euo pipefail
-          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          PR_SHA="${{ github.event.pull_request.base.sha }}"
+          BEFORE="${{ github.event.before }}"
+          BASE="${PR_SHA:-$BEFORE}"
           CHANGED_MODULES=$(git diff --name-only "${BASE}...HEAD" \
             | grep '^modules/' \
             | cut -d/ -f2 \
