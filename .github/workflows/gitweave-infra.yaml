@@ -54,7 +54,7 @@ jobs:
           if [ -f tfplan ]; then
             terraform show -no-color tfplan > plan_output.txt
           else
-            echo "Terraform plan failed to generate a plan file." > plan_output.txt
+            echo "Plan generation failed." > plan_output.txt
           fi
 
       - name: Upload plan artifact
@@ -76,13 +76,15 @@ jobs:
           fi
 
           # Read plan output and truncate at 65000 chars with notice
-          PLAN_OUTPUT=$(cat plan_output.txt 2>/dev/null || echo "No plan output available.")
+          PLAN_OUTPUT=$(cat plan_output.txt 2>/dev/null \
+              || echo "No plan output available.")
           if [ ${#PLAN_OUTPUT} -gt 65000 ]; then
             PLAN_OUTPUT="${PLAN_OUTPUT:0:65000}"$'\n...\n[Output truncated]'
           fi
 
-          # Build the comment body using the gitweave-tf-plan marker for deduplication
-          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          # Build comment body; gitweave-tf-plan marker enables dedup
+          RUN_BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          RUN_URL="${RUN_BASE}/actions/runs/${GITHUB_RUN_ID}"
           COMMENT_BODY=$(cat <<BODY
           <!-- gitweave-tf-plan -->
           <details><summary>Terraform Plan (exit ${TF_EXIT_CODE})</summary>
@@ -98,17 +100,22 @@ jobs:
 
           PR_NUMBER="${{ github.event.pull_request.number }}"
 
-          # Search for an existing gitweave-tf-plan comment by the unique marker
-          COMMENT_ID=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-            --jq '.[] | select(.body | contains("gitweave-tf-plan")) | .id' | head -1)
+          # Search for existing gitweave-tf-plan comment by unique marker
+          ISSUES_BASE="repos/${GITHUB_REPOSITORY}/issues"
+          COMMENTS_PATH="${ISSUES_BASE}/${PR_NUMBER}/comments"
+          JQ_SELECT='.[] | select(.body | contains("gitweave-tf-plan")) | .id'
+          COMMENT_ID=$(gh api "${COMMENTS_PATH}" \
+            --jq "${JQ_SELECT}" | head -1)
 
           if [ -n "${COMMENT_ID}" ]; then
             # Update existing comment via PATCH to avoid duplicating comments
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+            COMMENTS_BASE="repos/${GITHUB_REPOSITORY}/issues/comments"
+            PATCH_PATH="${COMMENTS_BASE}/${COMMENT_ID}"
+            gh api --method PATCH "${PATCH_PATH}" \
               --field body="${COMMENT_BODY}"
           else
             # Create new comment via POST when none exists yet
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            gh api "${COMMENTS_PATH}" \
               --field body="${COMMENT_BODY}"
           fi
 
@@ -116,6 +123,9 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
     needs: [plan]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     environment: production
     permissions:
       id-token: write

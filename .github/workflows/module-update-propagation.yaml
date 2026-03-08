@@ -1,8 +1,10 @@
+---
 name: Module Update Propagation
 
-# Fires when a module version tag is pushed, e.g. modules/python-service@20260305.0
+# Fires when a module version tag is pushed
+# e.g. modules/python-service@20260305.0
 # Tag format: modules/<name>@<version>
-on:
+'on':
   push:
     tags:
       - "modules/*@*"
@@ -43,7 +45,8 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "module_name=${MODULE_NAME}" >> "$GITHUB_OUTPUT"
           echo "module_version=${MODULE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Parsed tag: ${TAG}, module: ${MODULE_NAME}, version: ${MODULE_VERSION}"
+          echo "Parsed tag: ${TAG}, module: ${MODULE_NAME}," \
+            "version: ${MODULE_VERSION}"
 
       - name: Discover consumer repositories
         id: discover-changes
@@ -62,7 +65,11 @@ jobs:
               spec = doc.get("spec", {}) or {}
               repo = spec.get("repository")
               modules = spec.get("modules") or []
-              if repo and any(m.get("name") == module_name for m in modules if isinstance(m, dict)):
+              uses_module = any(
+                  m.get("name") == module_name
+                  for m in modules if isinstance(m, dict)
+              )
+              if repo and uses_module:
                   consumers.append(repo)
           print(",".join(consumers))
           PYEOF
@@ -82,7 +89,7 @@ jobs:
           CONSUMERS: ${{ steps.discover-changes.outputs.consumers }}
         run: |
           if [ -z "${CONSUMERS}" ]; then
-            echo "No consumers found for module '${MODULE_NAME}'. Nothing to do."
+            echo "No consumers for '${MODULE_NAME}'. Nothing to do."
             exit 0
           fi
 
@@ -93,19 +100,23 @@ jobs:
 
             # Clone consumer repository
             WORK_DIR=$(mktemp -d)
-            git clone --depth=1 "https://x-access-token:${GH_TOKEN}@github.com/${REPO_SLUG}.git" "${WORK_DIR}"
+            CLONE_URL="https://x-access-token:${GH_TOKEN}"
+            CLONE_URL="${CLONE_URL}@github.com/${REPO_SLUG}.git"
+            git clone --depth=1 "${CLONE_URL}" "${WORK_DIR}"
 
             # Run copier update and capture output
             cd "${WORK_DIR}"
-            COPIER_OUTPUT=$(copier update --defaults --skip-if-exists 2>&1 || true)
+            COPIER_OUTPUT=$(copier update \
+              --defaults --skip-if-exists 2>&1 || true)
 
             # Check for changes using idempotency guard
             DIFF_OUTPUT=$(git diff --stat 2>/dev/null || true)
             STAGED_OUTPUT=$(git status --short 2>/dev/null || true)
             COMBINED_CHANGES="${DIFF_OUTPUT}${STAGED_OUTPUT}"
 
-            if [ -z "$(echo "${COMBINED_CHANGES}" | tr -d '[:space:]')" ]; then
-              echo "No changes produced by copier update for ${REPO_SLUG} — skipping PR"
+            IS_EMPTY=$(echo "${COMBINED_CHANGES}" | tr -d '[:space:]')
+            if [ -z "${IS_EMPTY}" ]; then
+              echo "No copier changes for ${REPO_SLUG} — skipping PR"
               cd -
               rm -rf "${WORK_DIR}"
               continue
@@ -118,14 +129,19 @@ jobs:
 
             PR_TITLE="chore: update ${MODULE_NAME} to ${MODULE_VERSION}"
             git commit -m "${PR_TITLE}"
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO_SLUG}.git" "${BRANCH}"
+            git push "${CLONE_URL}" "${BRANCH}"
 
             # Build PR body with diff and link to module tag
             TAG_URL="https://github.com/${CONTROL_REPO}/releases/tag/${TAG_REF}"
-            PR_DIFF=$(git diff HEAD~1 2>/dev/null || git show --stat HEAD 2>/dev/null || echo "${COPIER_OUTPUT}")
+            PR_DIFF=$(
+              git diff HEAD~1 2>/dev/null \
+                || git show --stat HEAD 2>/dev/null \
+                || echo "${COPIER_OUTPUT}"
+            )
             PR_BODY="## Module update: ${MODULE_NAME}
 
-          This PR applies the changes from [${TAG_REF}](${TAG_URL}) (${CONTROL_REPO}) to this repository.
+          This PR applies the changes from [${TAG_REF}](${TAG_URL})
+          (${CONTROL_REPO}) to this repository.
 
           ### Changed files
 
@@ -134,7 +150,7 @@ jobs:
           \`\`\`
           "
 
-            # Open PR (idempotency: gh pr create fails if PR already exists, which is acceptable)
+            # Open PR; gh pr create fails on duplicate (idempotent)
             gh pr create \
               --repo "${REPO_SLUG}" \
               --title "${PR_TITLE}" \
