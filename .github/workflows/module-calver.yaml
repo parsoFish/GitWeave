@@ -31,7 +31,9 @@ jobs:
       - name: Validate CalVer in copier.yaml for changed modules
         run: |
           set -euo pipefail
-          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          PR_SHA="${{ github.event.pull_request.base.sha }}"
+          BEFORE="${{ github.event.before }}"
+          BASE="${PR_SHA:-$BEFORE}"
           CHANGED_MODULES=$(git diff --name-only "${BASE}...HEAD" \
             | grep '^modules/' \
             | cut -d/ -f2 \
@@ -53,7 +55,8 @@ jobs:
                doc=yaml.safe_load(open('${COPIER_FILE}')); \
                print(doc.get('_metadata',{}).get('version',''))")
             if [ "$ACTUAL" != "$EXPECTED" ]; then
-              echo "ERROR: $MODULE copier.yaml version '$ACTUAL' != expected '$EXPECTED'"
+              VERR="'$ACTUAL' != expected '$EXPECTED'"
+              echo "ERROR: $MODULE copier.yaml version $VERR"
               FAILED=1
             else
               echo "OK: $MODULE version '$ACTUAL'"

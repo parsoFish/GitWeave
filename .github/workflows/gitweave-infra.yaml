@@ -10,6 +10,7 @@ name: GitWeave Infrastructure
     branches: ["main"]
     paths:
       - "infra/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -57,13 +58,14 @@ jobs:
           fi
 
       - name: Upload plan artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: infra/tfplan
 
       - name: Post PR Comment
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
