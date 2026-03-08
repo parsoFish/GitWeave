@@ -11,21 +11,9 @@ Instead of building a heavy standalone platform, GitWeave overlays your GitHub o
 *   **Platform as Code**: Define behavior via configuration and Terraform, not bespoke services.
 *   **Greenfield & Brownfield**: Bootstrap new orgs or safely overlay existing ones.
 
-## 🛠️ SpecKit Workspace
+## Constitution & Governance
 
-This repository is a **SpecKit Workspace**. We use [SpecKit](https://github.com/github/spec-kit) to drive development through structured specifications and AI-assisted planning.
-
-### Workflow
-1.  **Constitution**: Defines the non-negotiable principles (see below).
-2.  **Specify**: Use `/speckit.specify` to define features (e.g., "Create a Node.js Template Module").
-3.  **Plan**: Use `/speckit.plan` to generate technical implementation plans.
-4.  **Implement**: Use `/speckit.implement` to drive code generation.
-
-All specs live in `specs/`, and the project governance is defined in `.specify/memory/constitution.md`.
-
-## 📜 Constitution & Governance
-
-Our [Constitution](.specify/memory/constitution.md) defines the core rules of engagement. Key highlights:
+Key principles:
 
 *   **Control Repo Centricity**: All behavior drives from this repo.
 *   **Provider-Native First**: Don't re-invent the wheel (use Actions, Issues, Packages).
@@ -37,7 +25,6 @@ Our [Constitution](.specify/memory/constitution.md) defines the core rules of en
 
 ### Control Repository
 The heart of GitWeave. It holds:
-*   **Specs**: SpecKit definitions for the org and modules.
 *   **Terraform**: Modules for provisioning GitHub resources and cloud infra.
 *   **Workflows**: GitHub Actions to apply configuration.
 *   **Overlay Config**: Tracks which templates apply to which managed repos.
@@ -90,8 +77,6 @@ A lightweight component (Service or Workflow) that:
 ├── metrics/                     # Metrics Observer Service (Python)
 ├── modules/                     # Template Modules
 ├── scripts/                     # Helper scripts
-├── specs/                       # Feature specifications (SpecKit)
-├── .specify/                    # SpecKit configuration
 └── README.md                    # This file
 ```
 
