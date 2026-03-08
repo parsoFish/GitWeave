@@ -1,7 +1,7 @@
 """Handler for GitHub deployment_status webhook events.
 
 Parses the payload and stores a normalised event containing the fields
-required for DORA deployment frequency and change failure rate metrics.
+required for DORA deployment frequency, change failure rate, and MTTR metrics.
 """
 
 from __future__ import annotations
@@ -56,6 +56,13 @@ def handle(payload: dict[str, Any], store: "EventStore") -> dict[str, Any]:
         "deployment_id": status["id"],
     }
     store.store_event(event)
+
+    from dora.change_failure_rate import update_change_failure_rate_gauge
+    from dora.mttr import update_mttr_gauge
+
+    update_change_failure_rate_gauge(repo, event["environment"], store)
+    update_mttr_gauge(repo, event["environment"], store)
+
     return event
 
 

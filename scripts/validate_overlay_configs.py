@@ -4,6 +4,7 @@ Validate all config/repos/*.yaml files against schemas/overlay.schema.json.
 
 Usage:
     python3 scripts/validate_overlay_configs.py [config/repos/]
+    python3 scripts/validate_overlay_configs.py --config-dir config/repos/
 
 The directory argument defaults to config/repos/ relative to the repo root.
 Exits 0 when all files are valid (or the directory is empty/absent).
@@ -52,12 +53,18 @@ def main() -> int:
     parser.add_argument(
         "directory",
         nargs="?",
-        default=DEFAULT_CONFIG_DIR,
+        default=None,
         help="Directory containing overlay YAML files (default: config/repos/)",
+    )
+    parser.add_argument(
+        "--config-dir",
+        default=None,
+        metavar="PATH",
+        help="Directory containing overlay YAML files (alternative to positional arg).",
     )
     args = parser.parse_args()
 
-    directory = args.directory
+    directory = args.config_dir or args.directory or DEFAULT_CONFIG_DIR
 
     if not os.path.isdir(directory):
         print(f"Validated 0 file(s) (directory does not exist: {directory})")

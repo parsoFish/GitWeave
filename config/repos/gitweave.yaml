@@ -1,0 +1,31 @@
+# config/repos/gitweave.yaml — GitWeave self-hosting overlay
+#
+# This overlay manages the GitWeave control repository itself via GitWeave's
+# own overlay system, demonstrating self-hosting capability.
+#
+# Apply in dry-run mode:
+#   python scripts/apply-overlays.py --dry-run
+
+apiVersion: gitweave.io/v1
+kind: RepositoryOverlay
+
+metadata:
+  name: gitweave-control-repo
+
+spec:
+  repository: gitweave-io/GitWeave
+
+  modules:
+    - name: python-service
+
+  environments:
+    main:
+      protection_rules:
+        required_reviewers: 1
+        required_status_checks:
+          - ci / test
+          - ci / lint
+
+  variables:
+    team_name: platform
+    service_tier: critical

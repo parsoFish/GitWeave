@@ -130,3 +130,35 @@ To initialize a new GitWeave Control Repository:
 
 5.  **Verify Workflows**
     Check the "Actions" tab in GitHub to ensure `gitweave-infra` and `gitweave-apply` are running correctly.
+
+## Self-Hosting
+
+GitWeave manages its own control repository through its overlay system — eating its own dog food.
+
+The overlay config at `config/repos/gitweave.yaml` applies GitWeave modules and branch protection to the GitWeave control repository itself (`gitweave-io/GitWeave`). This proves the system works end-to-end and serves as a live reference implementation.
+
+### What the self-hosting overlay configures
+
+- **Module**: applies the `python-service` module to keep the repository's Python tooling consistent
+- **Branch protection** (`main` environment): requires 1 PR review and CI status checks before merging
+- **Team ownership**: the `platform` team declared in `config/teams.yaml` owns this repository
+
+### Running the self-hosting overlay
+
+Dry-run (no changes applied, no credentials needed):
+
+```bash
+python scripts/apply-overlays.py --dry-run
+```
+
+Apply for real (requires `GITHUB_TOKEN` with repo admin scope):
+
+```bash
+python scripts/apply-overlays.py
+```
+
+Validate schema compliance:
+
+```bash
+python scripts/validate_overlay_configs.py --config-dir config/repos/
+```

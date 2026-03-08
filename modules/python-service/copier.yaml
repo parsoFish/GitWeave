@@ -1,0 +1,21 @@
+_metadata:
+  name: python_service
+  version: "20260308.0"
+  description: "Generates a production-ready Python microservice with pyproject.toml, Dockerfile, src-layout, tests, and GitHub Actions CI."
+
+service_name:
+  type: str
+  help: "Service/package name in snake_case (e.g. my_service). Used as the Python package name and Docker CMD module."
+
+description:
+  type: str
+  help: "Short one-line description of the service."
+
+python_version:
+  type: str
+  help: "Python version to target (e.g. 3.12). Used in FROM, requires-python, and CI setup-python."
+  default: "3.12"
+
+author_name:
+  type: str
+  help: "Author name to record in pyproject.toml [project].authors."
