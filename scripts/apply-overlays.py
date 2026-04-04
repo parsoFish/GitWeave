@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -19,25 +20,24 @@ import yaml
 
 def load_overlay_configs(config_dir: str) -> list[dict]:
     """
-    Load all RepositoryOverlay configs from *.yaml files in config_dir.
+    Load all RepositoryOverlay configs from *.yaml files in config_dir,
+    recursively including any subdirectory depth.
 
     Returns an empty list when the directory does not exist or contains no
     .yaml files. Raises a ValueError mentioning the filename for unparseable YAML.
     """
-    if not os.path.isdir(config_dir):
+    root = Path(config_dir)
+    if not root.is_dir():
         return []
 
     configs = []
-    for filename in sorted(os.listdir(config_dir)):
-        if not filename.endswith(".yaml"):
-            continue
-        path = os.path.join(config_dir, filename)
+    for path in sorted(root.rglob("*.yaml")):
         try:
             with open(path) as f:
                 doc = yaml.safe_load(f)
             configs.append(doc)
         except yaml.YAMLError as exc:
-            raise ValueError(f"Failed to parse {filename}: {exc}") from exc
+            raise ValueError(f"Failed to parse {path.name}: {exc}") from exc
 
     return configs
 
