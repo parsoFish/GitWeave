@@ -12,9 +12,9 @@ Public API (importable by unit tests):
 
 from __future__ import annotations
 
-import glob
 import os
 import sys
+from pathlib import Path
 
 import yaml
 
@@ -82,7 +82,10 @@ def build_pr_body(
 
 
 def find_consumers(module_name: str, config_dir: str) -> list[str]:
-    """Return repo slugs from config_dir/*.yaml that reference module_name.
+    """Return repo slugs from config_dir/**/*.yaml that reference module_name.
+
+    Scans .yaml files at any subdirectory depth so that team/tier subdirectory
+    conventions are fully supported.
 
     Each YAML file is expected to follow the RepositoryOverlay schema:
         spec.repository: <org/repo>
@@ -92,9 +95,11 @@ def find_consumers(module_name: str, config_dir: str) -> list[str]:
     Module name matching is case-sensitive and exact (no partial matches).
     """
     consumers: list[str] = []
-    pattern = os.path.join(config_dir, "*.yaml")
+    root = Path(config_dir)
+    if not root.is_dir():
+        return []
 
-    for path in sorted(glob.glob(pattern)):
+    for path in sorted(root.rglob("*.yaml")):
         try:
             with open(path) as f:
                 doc = yaml.safe_load(f)
