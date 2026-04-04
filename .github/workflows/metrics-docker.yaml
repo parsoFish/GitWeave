@@ -1,0 +1,86 @@
+name: Metrics Docker Build and Push
+
+on:
+  pull_request:
+    branches:
+      - "**"
+    paths:
+      - "metrics/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "metrics/**"
+
+# Least-privilege baseline: read-only access to source. packages: write is
+# restricted to the publish job that actually pushes to GHCR.
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint, Build, and Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: metrics/Dockerfile
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t gitweave-metrics:ci \
+            -f metrics/Dockerfile \
+            metrics/
+
+      - name: Run Trivy vulnerability scan
+        # Scan the locally built image; fail immediately on CRITICAL CVEs.
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gitweave-metrics:ci
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+          ignore-unfixed: true
+
+      - name: Check image size (must be under 300 MB)
+        run: |
+          size=$(docker image inspect gitweave-metrics:ci --format '{{.Size}}')
+          max_size=$((300 * 1024 * 1024))
+          echo "Image size: $((size / 1024 / 1024)) MB (limit: 300 MB)"
+          if [ "$size" -gt "$max_size" ]; then
+            echo "ERROR: Image size $((size / 1024 / 1024)) MB exceeds 300 MB limit"
+            exit 1
+          fi
+
+  publish:
+    name: Push to GHCR
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Elevated permissions scoped to this job only — minimises blast radius.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image to ghcr.io
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/gitweave-metrics:latest \
+            -f metrics/Dockerfile \
+            metrics/
+          docker push ghcr.io/${{ github.repository_owner }}/gitweave-metrics:latest
