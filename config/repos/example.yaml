@@ -1,0 +1,13 @@
+apiVersion: gitweave.io/v1
+kind: RepositoryOverlay
+
+metadata:
+  name: example-repo
+
+spec:
+  repository: my-org/example-repo
+
+  modules:
+    - name: example-template
+      inputs:
+        project_name: example-repo
