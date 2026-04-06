@@ -8,6 +8,10 @@ name: GitWeave Apply
       - "config/**"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   apply:
     name: Apply Configuration
@@ -17,10 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply Overlays
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
         run: |
-          echo "Applying configuration overlays..."
-          # Placeholder for actual logic (e.g., running a script or tool)
-          echo "Scanning config/ directory..."
-          ls -R config/
-          echo "Configuration applied successfully."
+          pip install copier pyyaml jsonschema
+
+      - name: Apply Overlays
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/apply-overlays.py config/repos/
