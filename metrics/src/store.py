@@ -74,6 +74,28 @@ class InMemoryEventStore:
             and e.get("created_at", datetime.min) >= since_dt
         ]
 
+    def get_distinct_repo_environment_pairs(
+        self,
+        since_dt: datetime,
+    ) -> list[tuple[str, str]]:
+        """Return unique (repo, environment) pairs from deployment_status events.
+
+        Only considers events at or after since_dt.  Preserves insertion order
+        of first occurrence.
+        """
+        seen: set[tuple[str, str]] = set()
+        pairs: list[tuple[str, str]] = []
+        for event in self._events:
+            if (
+                event.get("event_type") == "deployment_status"
+                and event.get("created_at", datetime.min) >= since_dt
+            ):
+                pair = (event.get("repo", ""), event.get("environment", ""))
+                if pair not in seen:
+                    seen.add(pair)
+                    pairs.append(pair)
+        return pairs
+
 
 class PostgreSQLEventStore:
     """PostgreSQL-backed EventStore for production use.
@@ -236,6 +258,29 @@ class PostgreSQLEventStore:
             events.append(row_dict)
 
         return events
+
+    def get_distinct_repo_environment_pairs(
+        self,
+        since_dt: datetime,
+    ) -> list[tuple[str, str]]:
+        """Return unique (repo, environment) pairs from deployment_status events.
+
+        Queries the deployment_events table for distinct (repo, environment)
+        combinations at or after since_dt.
+        """
+        import sqlalchemy  # noqa: PLC0415
+
+        since_dt = self._ensure_tz(since_dt)
+        engine = self._get_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    "SELECT DISTINCT repo, environment FROM deployment_events "  # noqa: S608
+                    "WHERE created_at >= :since_dt ORDER BY repo, environment"
+                ),
+                {"since_dt": since_dt},
+            )
+            return [(row[0], row[1]) for row in result.fetchall()]
 
 
 def create_event_store() -> InMemoryEventStore | PostgreSQLEventStore:

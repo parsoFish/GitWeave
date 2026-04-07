@@ -9,6 +9,7 @@ Replaces the original dummy metrics loop with a proper HTTP service exposing:
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
@@ -17,18 +18,76 @@ from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, Counter, Gauge, gen
 from replay import replay_counters_from_store
 from store import create_event_store
 
+from dora.change_failure_rate import compute_change_failure_rate
+from dora.deployment_frequency import compute_deployment_frequency
+from dora.lead_time_for_changes import compute_lead_time_for_changes
+from dora.mttr import compute_mttr
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Backward-compatible dummy metric — preserved so test_main.py keeps passing.
-# Uses try/except to survive importlib.reload() calls in PORT env-var tests.
+# Unregistered from the Prometheus registry so it does not appear in /metrics
+# output once the real DORA gauges are wired in.
 # ---------------------------------------------------------------------------
 try:
     DUMMY_METRIC = Gauge("gitweave_dummy_metric", "A dummy metric for testing")
 except ValueError:
     # Metric already registered (module reloaded via importlib.reload in tests).
-    # Retrieve the existing collector from the default registry.
     DUMMY_METRIC = REGISTRY._names_to_collectors.get("gitweave_dummy_metric")
+
+# Remove from the registry so it does not appear in Prometheus scrape output.
+try:
+    REGISTRY.unregister(DUMMY_METRIC)
+except Exception:  # noqa: BLE001
+    pass  # Already unregistered or not found — safe to ignore.
+
+# ---------------------------------------------------------------------------
+# DORA Prometheus gauges — registered once at module level.
+# Uses try/except to survive importlib.reload() calls in tests.
+# ---------------------------------------------------------------------------
+
+try:
+    DEPLOYMENT_FREQUENCY_GAUGE = Gauge(
+        "gitweave_deployment_frequency_daily",
+        "Daily deployment frequency (deployments per day) over the last 30 days",
+        ["repository", "environment"],
+    )
+except ValueError:
+    DEPLOYMENT_FREQUENCY_GAUGE = REGISTRY._names_to_collectors.get(
+        "gitweave_deployment_frequency_daily"
+    )
+
+try:
+    LEAD_TIME_GAUGE = Gauge(
+        "gitweave_lead_time_for_changes_seconds",
+        "Mean lead time for changes (seconds) from PR merge to successful deployment",
+        ["repository", "environment"],
+    )
+except ValueError:
+    LEAD_TIME_GAUGE = REGISTRY._names_to_collectors.get(
+        "gitweave_lead_time_for_changes_seconds"
+    )
+
+try:
+    CHANGE_FAILURE_RATE_GAUGE = Gauge(
+        "gitweave_change_failure_rate",
+        "Proportion of deployments that resulted in a failure (0.0–1.0)",
+        ["repository", "environment"],
+    )
+except ValueError:
+    CHANGE_FAILURE_RATE_GAUGE = REGISTRY._names_to_collectors.get(
+        "gitweave_change_failure_rate"
+    )
+
+try:
+    MTTR_GAUGE = Gauge(
+        "gitweave_mttr_seconds",
+        "Mean time to restore (seconds) from deployment failure to recovery",
+        ["repository", "environment"],
+    )
+except ValueError:
+    MTTR_GAUGE = REGISTRY._names_to_collectors.get("gitweave_mttr_seconds")
 
 # ---------------------------------------------------------------------------
 # DORA Prometheus counters — module-level so /metrics always exposes them.
@@ -112,6 +171,53 @@ def get_event_store() -> EventStore:
     inject a fresh, isolated EventStore per test case.
     """
     return _default_store
+
+
+# ---------------------------------------------------------------------------
+# DORA event store — separate store backed by the configured persistence layer.
+# Override via ``app.dependency_overrides[get_dora_store]`` in tests.
+# ---------------------------------------------------------------------------
+
+_dora_event_store = create_event_store()
+
+
+def get_dora_store() -> Any:
+    """FastAPI dependency provider for the DORA metrics event store.
+
+    Override via ``app.dependency_overrides[get_dora_store]`` in tests to
+    inject a pre-seeded store for DORA computation.
+    """
+    return _dora_event_store
+
+
+# ---------------------------------------------------------------------------
+# DORA scrape-time collector
+# ---------------------------------------------------------------------------
+
+_DORA_WINDOW_DAYS = 30
+
+
+def collect_dora_metrics(store: Any, repo: str, environment: str) -> None:
+    """Compute all four DORA metrics and set the corresponding Prometheus gauges.
+
+    Called at scrape time so that each /metrics request reflects the current
+    state of the event store.  Uses set-semantics (not increment) so repeated
+    calls are idempotent — subsequent calls overwrite previous values.
+
+    Args:
+        store:       EventStore to query for deployment and PR events.
+        repo:        Repository full name label (e.g. 'org/repo').
+        environment: Environment label (e.g. 'production').
+    """
+    df = compute_deployment_frequency(store, repo, environment)
+    lt = compute_lead_time_for_changes(store, repo, environment)
+    cfr = compute_change_failure_rate(store, repo, environment)
+    mttr = compute_mttr(store, repo, environment)
+
+    DEPLOYMENT_FREQUENCY_GAUGE.labels(repository=repo, environment=environment).set(df)
+    LEAD_TIME_GAUGE.labels(repository=repo, environment=environment).set(lt)
+    CHANGE_FAILURE_RATE_GAUGE.labels(repository=repo, environment=environment).set(cfr)
+    MTTR_GAUGE.labels(repository=repo, environment=environment).set(mttr)
 
 
 # ---------------------------------------------------------------------------
@@ -199,13 +305,18 @@ async def healthz() -> dict[str, str]:
 
 
 @app.get("/metrics")
-async def metrics() -> Response:
+async def metrics(store: Any = Depends(get_dora_store)) -> Response:
     """Prometheus exposition format metrics endpoint.
 
-    Serves all metrics from the default prometheus_client registry as
-    text/plain in the standard Prometheus exposition format. No bearer token
-    authentication is required (see acceptance criteria).
+    At scrape time, enumerates all active (repo, environment) pairs from the
+    event store and calls collect_dora_metrics for each, updating the four
+    DORA Prometheus gauges before serialising the registry.
     """
+    since = datetime.now(timezone.utc) - timedelta(days=_DORA_WINDOW_DAYS)
+    pairs = store.get_distinct_repo_environment_pairs(since)
+    for repo, environment in pairs:
+        collect_dora_metrics(store, repo=repo, environment=environment)
+
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,
