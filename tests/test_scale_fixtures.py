@@ -412,17 +412,16 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
 
     def test_all_100_generated_files_pass_overlay_schema_validation(self):
         """All 100 generated overlay YAML files must satisfy the overlay schema."""
+        failures: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=100)
-
-        failures: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            try:
-                validate(instance=doc, schema=self.schema)
-            except ValidationError as exc:
-                failures.append(f"{path}: {exc.message}")
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                try:
+                    validate(instance=doc, schema=self.schema)
+                except ValidationError as exc:
+                    failures.append(f"{path}: {exc.message}")
 
         self.assertEqual(
             failures,
@@ -433,18 +432,17 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
 
     def test_each_generated_file_is_valid_yaml(self):
         """Every generated file must parse as a YAML mapping without error."""
+        parse_errors: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=20)
-
-        parse_errors: list[str] = []
-        for path in result:
-            try:
-                with open(path) as fh:
-                    doc = yaml.safe_load(fh)
-                if not isinstance(doc, dict):
-                    parse_errors.append(f"{path}: parsed as {type(doc).__name__}, expected dict")
-            except yaml.YAMLError as exc:
-                parse_errors.append(f"{path}: YAML parse error: {exc}")
+            for path in result:
+                try:
+                    with open(path) as fh:
+                        doc = yaml.safe_load(fh)
+                    if not isinstance(doc, dict):
+                        parse_errors.append(f"{path}: parsed as {type(doc).__name__}, expected dict")
+                except yaml.YAMLError as exc:
+                    parse_errors.append(f"{path}: YAML parse error: {exc}")
 
         self.assertEqual(
             parse_errors,
@@ -454,15 +452,14 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
 
     def test_each_generated_file_has_correct_api_version(self):
         """Every generated file must have apiVersion: gitweave.io/v1."""
+        wrong: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=20)
-
-        wrong: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            if doc.get("apiVersion") != "gitweave.io/v1":
-                wrong.append(f"{path}: apiVersion={doc.get('apiVersion')!r}")
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                if doc.get("apiVersion") != "gitweave.io/v1":
+                    wrong.append(f"{path}: apiVersion={doc.get('apiVersion')!r}")
 
         self.assertEqual(
             wrong,
@@ -472,15 +469,14 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
 
     def test_each_generated_file_has_correct_kind(self):
         """Every generated file must have kind: RepositoryOverlay."""
+        wrong: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=20)
-
-        wrong: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            if doc.get("kind") != "RepositoryOverlay":
-                wrong.append(f"{path}: kind={doc.get('kind')!r}")
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                if doc.get("kind") != "RepositoryOverlay":
+                    wrong.append(f"{path}: kind={doc.get('kind')!r}")
 
         self.assertEqual(
             wrong,
@@ -492,16 +488,15 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
         """spec.repository in every generated file must match owner/repo pattern."""
         import re
         pattern = re.compile(r"^[^/\s]+/[^/\s]+$")
+        wrong: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=20)
-
-        wrong: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            repo = doc.get("spec", {}).get("repository", "")
-            if not pattern.match(repo):
-                wrong.append(f"{path}: repository={repo!r}")
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                repo = doc.get("spec", {}).get("repository", "")
+                if not pattern.match(repo):
+                    wrong.append(f"{path}: repository={repo!r}")
 
         self.assertEqual(
             wrong,
@@ -511,16 +506,15 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
 
     def test_each_generated_file_has_metadata_name(self):
         """Every generated file must have a non-empty metadata.name."""
+        wrong: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=20)
-
-        wrong: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            name = doc.get("metadata", {}).get("name", "")
-            if not name:
-                wrong.append(str(path))
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                name = doc.get("metadata", {}).get("name", "")
+                if not name:
+                    wrong.append(str(path))
 
         self.assertEqual(
             wrong,
@@ -533,14 +527,13 @@ class TestGeneratedFilesPassSchemaValidation(unittest.TestCase):
         Each generated file must target a distinct repository — duplicate
         slugs would make fixtures ambiguous for discovery tests.
         """
+        slugs: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             result = self.mod.generate(tmp, count=100)
-
-        slugs: list[str] = []
-        for path in result:
-            with open(path) as fh:
-                doc = yaml.safe_load(fh)
-            slugs.append(doc.get("spec", {}).get("repository", ""))
+            for path in result:
+                with open(path) as fh:
+                    doc = yaml.safe_load(fh)
+                slugs.append(doc.get("spec", {}).get("repository", ""))
 
         self.assertEqual(
             len(slugs),
