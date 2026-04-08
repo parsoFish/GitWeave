@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""
-Validate overlay config files in a directory against schemas/overlay.schema.json.
+"""Validate GitWeave overlay YAML files against schemas/overlay.schema.json.
 
 Usage:
-    python3 scripts/validate_overlay_configs.py [config_dir]
+  # Directory mode — validate all .yaml files in a directory:
+  python scripts/validate_overlay_configs.py config/repos/
 
-Exits 0 if all .yaml files pass schema validation, non-zero if any fail.
+  # File-path mode — validate specific files (incremental PR validation):
+  python scripts/validate_overlay_configs.py config/repos/a.yaml config/repos/b.yaml
+
+  # No-argument mode — nothing to validate (empty PR diff):
+  python scripts/validate_overlay_configs.py
+
+Exits 0 if all files pass schema validation, non-zero if any fail.
 """
 
-import argparse
 import concurrent.futures
 import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import yaml
 import jsonschema
@@ -28,9 +34,9 @@ def load_schema(schema_path: str) -> dict:
         return json.load(f)
 
 
-def _validate_file(filename: str, config_dir: str, schema: dict) -> tuple[str, bool, str]:
+def _validate_file(filepath: str, schema: dict) -> tuple[str, bool, str]:
     """Validate a single YAML file. Returns (filename, ok, message)."""
-    filepath = os.path.join(config_dir, filename)
+    filename = os.path.basename(filepath)
     try:
         with open(filepath) as f:
             doc = yaml.safe_load(f)
@@ -44,26 +50,18 @@ def _validate_file(filename: str, config_dir: str, schema: dict) -> tuple[str, b
         return filename, False, exc.message
 
 
-def validate_directory(config_dir: str, schema: dict) -> bool:
-    """Validate all .yaml files in config_dir in parallel. Returns True if all pass."""
-    if not os.path.isdir(config_dir):
-        print(f"Validated 0 files (directory does not exist: {config_dir})")
-        return True
-
-    yaml_files = sorted(
-        f for f in os.listdir(config_dir) if f.endswith(".yaml")
-    )
-
-    if not yaml_files:
+def validate_files(filepaths: list[str], schema: dict) -> bool:
+    """Validate a list of YAML file paths in parallel. Returns True if all pass."""
+    if not filepaths:
         print("Validated 0 files")
         return True
 
-    results: list[tuple[str, bool, str]] = [None] * len(yaml_files)
+    results: list[tuple[str, bool, str]] = [None] * len(filepaths)
 
     with ThreadPoolExecutor() as executor:
         future_to_index = {
-            executor.submit(_validate_file, filename, config_dir, schema): i
-            for i, filename in enumerate(yaml_files)
+            executor.submit(_validate_file, filepath, schema): i
+            for i, filepath in enumerate(filepaths)
         }
         for future in concurrent.futures.as_completed(future_to_index):
             idx = future_to_index[future]
@@ -77,8 +75,8 @@ def validate_directory(config_dir: str, schema: dict) -> bool:
             print(f"FAIL {filename}: {message}")
             failures.append(filename)
 
-    file_word = "file" if len(yaml_files) == 1 else "files"
-    print(f"Validated {len(yaml_files)} {file_word}")
+    file_word = "file" if len(filepaths) == 1 else "files"
+    print(f"Validated {len(filepaths)} {file_word}")
 
     if failures:
         print(f"{len(failures)} file(s) failed validation: {', '.join(failures)}")
@@ -87,22 +85,49 @@ def validate_directory(config_dir: str, schema: dict) -> bool:
     return True
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Validate overlay config files against schemas/overlay.schema.json"
+def validate_directory(config_dir: str, schema: dict) -> bool:
+    """Validate all .yaml files in config_dir in parallel. Returns True if all pass."""
+    if not os.path.isdir(config_dir):
+        print(f"Validated 0 files (directory does not exist: {config_dir})")
+        return True
+
+    yaml_files = sorted(
+        os.path.join(config_dir, f)
+        for f in os.listdir(config_dir) if f.endswith(".yaml")
     )
-    parser.add_argument(
-        "config_dir",
-        nargs="?",
-        default=os.path.join(REPO_ROOT, "config", "repos"),
-        help="Directory containing .yaml overlay config files (default: config/repos/)",
-    )
-    args = parser.parse_args()
+
+    return validate_files(yaml_files, schema)
+
+
+def main() -> int:
+    args = sys.argv[1:]
 
     schema = load_schema(DEFAULT_SCHEMA_PATH)
-    success = validate_directory(args.config_dir, schema)
-    sys.exit(0 if success else 1)
+
+    # No arguments — nothing to validate (empty PR diff)
+    if not args:
+        print("No overlay files to validate — skipping")
+        print("Validated 0 files")
+        return 0
+
+    # Single argument: directory mode or single file
+    if len(args) == 1:
+        target = Path(args[0])
+        if not target.exists():
+            print(f"Validated 0 files (path does not exist: {args[0]})")
+            return 0
+        if target.is_dir():
+            success = validate_directory(str(target), schema)
+            return 0 if success else 1
+        # Single file
+        success = validate_files([str(target)], schema)
+        return 0 if success else 1
+
+    # Multiple arguments: file-path mode (incremental PR validation)
+    filepaths = [f for f in args if os.path.isfile(f)]
+    success = validate_files(filepaths, schema)
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
