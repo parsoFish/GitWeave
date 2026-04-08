@@ -56,6 +56,11 @@ def handle(payload: dict[str, Any], store: "EventStore") -> dict[str, Any]:
         "deployment_id": status["id"],
     }
     store.store_event(event)
+
+    if status["state"] == "success":
+        from dora.deployment_frequency import update_gauge
+        update_gauge(repo, status["environment"], store, created_at)
+
     return event
 
 
