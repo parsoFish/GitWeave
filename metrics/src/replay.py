@@ -199,3 +199,53 @@ def startup_replay(store: Any) -> None:
         stored_count += 1
 
     logger.info("startup_replay: stored %d events from the last 24h", stored_count)
+
+
+def replay_counters_from_store(
+    store: Any,
+    push_counter: Any,
+    pr_counter: Any,
+    deployment_counter: Any,
+) -> None:
+    """Hydrate Prometheus DORA counters from all persisted events in the store.
+
+    Reads every stored event and increments the matching Prometheus counter so
+    that /metrics reflects the full event history after a container restart.
+
+    Supports InMemoryEventStore (test/dev) and PostgreSQLEventStore (production).
+    For unknown store implementations the function silently does nothing, so
+    service startup is never blocked.
+    """
+    from store import InMemoryEventStore, PostgreSQLEventStore  # noqa: PLC0415
+
+    if isinstance(store, InMemoryEventStore):
+        for event in store._events:  # noqa: SLF001
+            event_type = event.get("event_type")
+            if event_type == "push":
+                push_counter.inc()
+            elif event_type == "pull_request":
+                pr_counter.inc()
+            elif event_type == "deployment_status":
+                deployment_counter.inc()
+
+    elif isinstance(store, PostgreSQLEventStore):
+        import sqlalchemy  # noqa: PLC0415
+
+        engine = store._get_engine()  # noqa: SLF001
+        with engine.connect() as conn:
+            push_count = conn.execute(
+                sqlalchemy.text("SELECT COUNT(*) FROM push_events")  # noqa: S608
+            ).fetchone()[0]
+            pr_count = conn.execute(
+                sqlalchemy.text("SELECT COUNT(*) FROM pr_events")  # noqa: S608
+            ).fetchone()[0]
+            dep_count = conn.execute(
+                sqlalchemy.text("SELECT COUNT(*) FROM deployment_events")  # noqa: S608
+            ).fetchone()[0]
+
+        if push_count:
+            push_counter.inc(push_count)
+        if pr_count:
+            pr_counter.inc(pr_count)
+        if dep_count:
+            deployment_counter.inc(dep_count)

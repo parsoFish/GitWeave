@@ -8,10 +8,14 @@ Replaces the original dummy metrics loop with a proper HTTP service exposing:
 
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
-from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, Gauge, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, Counter, Gauge, generate_latest
+
+from replay import replay_counters_from_store
+from store import create_event_store
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,27 @@ except ValueError:
     # Metric already registered (module reloaded via importlib.reload in tests).
     # Retrieve the existing collector from the default registry.
     DUMMY_METRIC = REGISTRY._names_to_collectors.get("gitweave_dummy_metric")
+
+# ---------------------------------------------------------------------------
+# DORA Prometheus counters — module-level so /metrics always exposes them.
+# Uses try/except to survive importlib.reload() calls in PORT env-var tests.
+# ---------------------------------------------------------------------------
+try:
+    PUSH_COUNTER = Counter("gitweave_push_events", "Total push events processed")
+except ValueError:
+    PUSH_COUNTER = REGISTRY._names_to_collectors.get("gitweave_push_events")  # noqa: SLF001
+
+try:
+    PR_COUNTER = Counter("gitweave_pr_merged", "Total merged pull request events processed")
+except ValueError:
+    PR_COUNTER = REGISTRY._names_to_collectors.get("gitweave_pr_merged")  # noqa: SLF001
+
+try:
+    DEPLOYMENT_COUNTER = Counter(
+        "gitweave_deployment_events", "Total deployment status events processed"
+    )
+except ValueError:
+    DEPLOYMENT_COUNTER = REGISTRY._names_to_collectors.get("gitweave_deployment_events")  # noqa: SLF001
 
 # ---------------------------------------------------------------------------
 # Port configuration — integer so uvicorn accepts it directly.
@@ -118,10 +143,27 @@ def dispatch_event(
 
 
 # ---------------------------------------------------------------------------
+# Lifespan — hydrates DORA counters from the persisted event store on startup
+# ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ANN001
+    """Replay stored events into Prometheus counters so /metrics reflects history.
+
+    Runs once during application startup.  After the counters are seeded the
+    service starts normally; no action is taken on shutdown.
+    """
+    store = create_event_store()
+    replay_counters_from_store(store, PUSH_COUNTER, PR_COUNTER, DEPLOYMENT_COUNTER)
+    yield
+
+
+# ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="GitWeave Metrics & Webhook Service")
+app = FastAPI(title="GitWeave Metrics & Webhook Service", lifespan=lifespan)
 
 
 @app.post("/webhook")
