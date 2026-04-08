@@ -40,3 +40,28 @@ jobs:
 
       - name: Lint workflow YAML files
         run: yamllint .github/workflows/
+
+  dry-run-smoke:
+    name: Dry-Run Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run apply-overlays dry-run and assert output
+        run: |
+          set -euo pipefail
+          OUTPUT=$(python3 scripts/apply-overlays.py \
+            --dry-run config/repos/example.yaml)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep "my-org/example-smoke-repo"
+          echo "$OUTPUT" | grep "example-template"
