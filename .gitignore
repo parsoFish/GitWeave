@@ -23,3 +23,11 @@ venv/
 LOCAL_SETUP.md
 .envrc
 .direnv/
+# forge scratch (forge preflight auto-fix)
+.forge/work-items/
+.forge/.create-complete
+.forge/live-evidence/
+.forge/preflight.json
+AGENT.md
+PROMPT.md
+fix_plan.md
