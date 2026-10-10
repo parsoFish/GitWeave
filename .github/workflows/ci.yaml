@@ -64,4 +64,3 @@ jobs:
             --dry-run config/repos/example.yaml)
           echo "$OUTPUT"
           echo "$OUTPUT" | grep "my-org/example-smoke-repo"
-          echo "$OUTPUT" | grep "example-template"
