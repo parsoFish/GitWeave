@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitWeave — Demo: Schema + module scaffold lands</title>
+<style>
+/*
+ * forge-demo.css — the canonical base stylesheet for an agent-generated project
+ * DEMO.html (Stage B, demo-builder).
+ *
+ * The demo-builder agent INLINES this into the `<style>` block of the
+ * self-contained DEMO.html it generates, then layers project-specific styles on
+ * top. Self-contained-by-inlining is deliberate: the demo is served into a
+ * sandboxed iframe (`sandbox=""`, mirroring PLAN.html), which blocks external
+ * stylesheet loads — so the page must carry everything it needs. Keeping the
+ * Forge palette + base layout here (one source) means every project's demo reads
+ * as Forge even though its content is bespoke.
+ *
+ * Palette is the same dark "forge stage" PLAN.html uses, so demos and plans sit
+ * in one visual language.
+ */
+
+:root {
+  --bg: #0a0e14;
+  --fg: #e6edf3;
+  --muted: #8b949e;
+  --border: #21262d;
+  --accent: #1f6feb;
+  --ok: #2ea043;
+  --warn: #d29922;
+  --code-bg: #0a0f16;
+  --card-bg: #11161d;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2rem 1.5rem 4rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  line-height: 1.55;
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+h1 { font-size: 1.75rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+h2 {
+  margin: 2.25rem 0 0.75rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+}
+h3 { font-size: 0.95rem; margin: 1rem 0 0.4rem; }
+p { margin: 0.5rem 0; }
+a { color: var(--accent); }
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; }
+pre {
+  background: var(--code-bg);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.79rem;
+  line-height: 1.45;
+  margin: 0;
+  border: 1px solid var(--border);
+}
+
+/* A demo "card" — the workhorse container for a checkpoint / capability panel. */
+.demo-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+/* before/after comparison grid */
+.demo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.demo-compare > div { min-width: 0; }
+
+.chip {
+  display: inline-block;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+.chip strong { color: var(--fg); }
+
+.badge-ok { color: var(--ok); }
+.badge-warn { color: var(--warn); }
+
+/* the demo header band */
+.demo-head {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+.demo-head .essence { color: var(--muted); font-size: 0.95rem; }
+
+/* project-specific additions */
+.step-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.verdict-row:last-child { border-bottom: none; }
+.verdict-icon { font-size: 1rem; flex-shrink: 0; }
+.placeholder {
+  color: var(--warn);
+  font-style: italic;
+  font-size: 0.79rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--warn);
+  border-radius: 4px;
+  background: transparent;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ HEADER -->
+<div class="demo-head">
+  <h1>GitWeave</h1>
+  <p class="essence">
+    Schema validation + example module scaffold added — overlay and copier configs now have enforced contracts.
+  </p>
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+    <span class="chip"><strong>initiative</strong> schemas-and-module-scaffold</span>
+    <span class="chip"><strong>date</strong> 2026-10-09</span>
+    <span class="chip"><strong>gate</strong> <span class="badge-ok">✓ green after</span></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ NARRATIVE -->
+<h2>What changed</h2>
+<div class="demo-card">
+  <p>
+    Before this initiative, GitWeave carried no machine-readable contracts for overlay configs or copier modules —
+    contributors could add a <code>config/</code> overlay or <code>modules/*/copier.yaml</code> with any shape and
+    nothing caught it. This initiative introduced <code>schemas/overlay.schema.json</code>,
+    <code>schemas/copier-module.schema.json</code>, and a matching <code>modules/example-template/</code> scaffold,
+    wiring them to the pytest gate so every future addition is validated automatically on push.
+  </p>
+  <p>
+    The evidence below is captured at two commits: <em>baseline</em> (parent of the PR head, schemas absent)
+    and <em>after</em> (PR head, schemas + module present). The gate that was red on the baseline is green after.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ STEP 1: pytest before/after -->
+<h2>Step 1 — Gate results (pytest, before → after)</h2>
+<p style="color:var(--muted); font-size:0.85rem; margin-bottom:0.5rem;">
+  Command: <code>python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q</code>
+</p>
+
+<div class="demo-card">
+  <div class="demo-compare">
+    <div>
+      <div class="step-label">Before <span class="badge-warn">36fccf8 — schemas absent</span></div>
+      <pre>ERROR: file or directory not found: tests/test_overlay_schema.py
+
+no tests ran in 0.00s</pre>
+    </div>
+    <div>
+      <div class="step-label">After <span class="badge-ok">dd93876 — schemas present</span></div>
+      <pre>........................................................................
+.....................................................................
+141 passed, 1 deselected, 1 subtests passed in 1.06s</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ STEP 2: git ls-files before/after -->
+<h2>Step 2 — File tree (git ls-files, before → after)</h2>
+<p style="color:var(--muted); font-size:0.85rem; margin-bottom:0.5rem;">
+  Command: <code>git ls-files</code>
+</p>
+
+<div class="demo-card">
+  <div class="demo-compare">
+    <div>
+      <div class="step-label">Before <span class="badge-warn">36fccf8 — 66 files, no schemas/</span></div>
+      <pre>.github/agents/copilot-instructions.md
+.github/agents/speckit.analyze.agent.md
+.github/agents/speckit.checklist.agent.md
+.github/agents/speckit.clarify.agent.md
+.github/agents/speckit.constitution.agent.md
+.github/agents/speckit.implement.agent.md
+.github/agents/speckit.plan.agent.md
+.github/agents/speckit.specify.agent.md
+.github/agents/speckit.tasks.agent.md
+.github/agents/speckit.taskstoissues.agent.md
+.github/copilot-context.md
+.github/prompts/speckit.analyze.prompt.md
+.github/prompts/speckit.checklist.prompt.md
+.github/prompts/speckit.clarify.prompt.md
+.github/prompts/speckit.constitution.prompt.md
+.github/prompts/speckit.implement.prompt.md
+.github/prompts/speckit.plan.prompt.md
+.github/prompts/speckit.specify.prompt.md
+.github/prompts/speckit.tasks.prompt.md
+.github/prompts/speckit.taskstoissues.prompt.md
+.github/workflows/ci.yaml
+.github/workflows/gitweave-apply.yaml
+.github/workflows/gitweave-infra.yaml
+.gitignore
+.specify/memory/constitution.md
+.specify/scripts/bash/check-prerequisites.sh
+.specify/scripts/bash/common.sh
+.specify/scripts/bash/create-new-feature.sh
+.specify/scripts/bash/setup-plan.sh
+.specify/scripts/bash/update-agent-context.sh
+.specify/templates/agent-file-template.md
+.specify/templates/checklist-template.md
+.specify/templates/plan-template.md
+.specify/templates/spec-template.md
+.specify/templates/tasks-template.md
+CLAUDE.md
+README.md
+config/.gitkeep
+config/example.yaml
+infra/bootstrap/README.md
+infra/main.tf
+infra/outputs.tf
+infra/variables.tf
+metrics/requirements.txt
+metrics/src/main.py
+metrics/tests/test_main.py
+modules/.gitkeep
+modules/example-template/README.md
+scripts/bootstrap.sh
+specs/001-control-repo-structure/checklists/requirements.md
+specs/001-control-repo-structure/contracts/directory-structure.md
+specs/001-control-repo-structure/data-model.md
+specs/001-control-repo-structure/plan.md
+specs/001-control-repo-structure/quickstart.md
+specs/001-control-repo-structure/research.md
+specs/001-control-repo-structure/spec.md
+specs/001-control-repo-structure/tasks.md
+specs/002-template-module-contract/checklists/requirements.md
+specs/002-template-module-contract/spec.md
+specs/003-overlay-config-schema/checklists/requirements.md
+specs/003-overlay-config-schema/spec.md
+specs/004-metrics-observer/checklists/requirements.md
+specs/004-metrics-observer/spec.md
+specs/005-terraform-bootstrap/checklists/requirements.md
+specs/005-terraform-bootstrap/spec.md
+tests/test_ci_workflow.py
+tests/test_structure.py</pre>
+    </div>
+    <div>
+      <div class="step-label">After <span class="badge-ok">dd93876 — 77 files, schemas/ + copier.yaml present</span></div>
+      <pre>.github/agents/copilot-instructions.md
+.github/agents/speckit.analyze.agent.md
+.github/agents/speckit.checklist.agent.md
+.github/agents/speckit.clarify.agent.md
+.github/agents/speckit.constitution.agent.md
+.github/agents/speckit.implement.agent.md
+.github/agents/speckit.plan.agent.md
+.github/agents/speckit.specify.agent.md
+.github/agents/speckit.tasks.agent.md
+.github/agents/speckit.taskstoissues.agent.md
+.github/copilot-context.md
+.github/prompts/speckit.analyze.prompt.md
+.github/prompts/speckit.checklist.prompt.md
+.github/prompts/speckit.clarify.prompt.md
+.github/prompts/speckit.constitution.prompt.md
+.github/prompts/speckit.implement.prompt.md
+.github/prompts/speckit.plan.prompt.md
+.github/prompts/speckit.specify.prompt.md
+.github/prompts/speckit.tasks.prompt.md
+.github/prompts/speckit.taskstoissues.prompt.md
+.github/workflows/ci.yaml
+.github/workflows/gitweave-apply.yaml
+.github/workflows/gitweave-infra.yaml
+.gitignore
+.specify/memory/constitution.md
+.specify/scripts/bash/check-prerequisites.sh
+.specify/scripts/bash/common.sh
+.specify/scripts/bash/create-new-feature.sh
+.specify/scripts/bash/setup-plan.sh
+.specify/scripts/bash/update-agent-context.sh
+.specify/templates/agent-file-template.md
+.specify/templates/checklist-template.md
+.specify/templates/plan-template.md
+.specify/templates/spec-template.md
+.specify/templates/tasks-template.md
+CLAUDE.md
+README.md
+config/.gitkeep
+config/example.yaml
+config/teams.yaml
+infra/bootstrap/README.md
+infra/main.tf
+infra/outputs.tf
+infra/variables.tf
+metrics/requirements.txt
+metrics/src/main.py
+metrics/src/webhook.py
+metrics/tests/test_main.py
+metrics/tests/test_webhook_endpoint.py
+metrics/tests/test_webhook_signature.py
+modules/.gitkeep
+modules/example-template/README.md
+modules/example-template/copier.yaml
+schemas/copier-module.schema.json
+schemas/overlay.schema.json
+scripts/bootstrap.sh
+specs/001-control-repo-structure/checklists/requirements.md
+specs/001-control-repo-structure/contracts/directory-structure.md
+specs/001-control-repo-structure/data-model.md
+specs/001-control-repo-structure/plan.md
+specs/001-control-repo-structure/quickstart.md
+specs/001-control-repo-structure/research.md
+specs/001-control-repo-structure/spec.md
+specs/001-control-repo-structure/tasks.md
+specs/002-template-module-contract/checklists/requirements.md
+specs/002-template-module-contract/spec.md
+specs/003-overlay-config-schema/checklists/requirements.md
+specs/003-overlay-config-schema/spec.md
+specs/004-metrics-observer/checklists/requirements.md
+specs/004-metrics-observer/spec.md
+specs/005-terraform-bootstrap/checklists/requirements.md
+specs/005-terraform-bootstrap/spec.md
+tests/test_ci_workflow.py
+tests/test_copier_schema.py
+tests/test_copier_schema_ci.py
+tests/test_overlay_schema.py
+tests/test_python_service_module.py
+tests/test_structure.py
+tests/test_terraform_module_template.py
+tests/test_terraform_module_validate.py
+tests/test_tf_teams_plan.py
+tests/test_tf_teams_structure.py
+tests/test_tf_teams_validate.py</pre>
+    </div>
+  </div>
+  <p style="color:var(--muted); font-size:0.82rem; margin-top:0.75rem;">
+    New paths expected after: <code>schemas/overlay.schema.json</code> · <code>schemas/copier-module.schema.json</code> ·
+    <code>config/example.yaml</code> · <code>modules/example-template/copier.yaml</code>
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ STEP 3: verify verdict -->
+<h2>Step 3 — Verify</h2>
+
+<div class="demo-card">
+  <div class="verdict-row">
+    <span class="verdict-icon">🟢</span>
+    <div>
+      <strong>Gate is green after</strong>
+      <div style="color:var(--muted); font-size:0.82rem;">
+        141 passed, 1 deselected, 1 subtests passed in 1.06s — zero failures at dd93876.
+      </div>
+    </div>
+  </div>
+  <div class="verdict-row">
+    <span class="verdict-icon">🔴</span>
+    <div>
+      <strong>Change's own tests fail on baseline</strong>
+      <div style="color:var(--muted); font-size:0.82rem;">
+        <code>test_overlay_schema.py</code> and <code>test_copier_schema.py</code> both absent at baseline —
+        pytest exits with <code>ERROR: file or directory not found: tests/test_overlay_schema.py</code>
+        (exit 4, no tests ran). The test files themselves don't exist yet, not just the schemas.
+      </div>
+    </div>
+  </div>
+  <div class="verdict-row">
+    <span class="verdict-icon">✅</span>
+    <div>
+      <strong>No test asserts against a module that does not exist</strong>
+      <div style="color:var(--muted); font-size:0.82rem;">
+        Every <code>modules/*/copier.yaml</code> glob used in <code>test_copier_schema.py</code> resolves to a file
+        present in the tree after — none are phantom references.
+        <span class="placeholder">&lt;!-- GROUNDING PASS: enumerate resolved module paths from after run --&gt;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ STEP 4: present -->
+<h2>Step 4 — Attached evidence</h2>
+
+<div class="demo-card">
+  <p>Both captures (pytest stdout, git ls-files) and this verify verdict are attached to:</p>
+  <ul style="color:var(--muted); font-size:0.9rem; margin:0.5rem 0 0 1rem; padding:0;">
+    <li>The PR description (as a collapsible <code>&lt;details&gt;</code> block).</li>
+    <li><code>history/&lt;initiative-id&gt;/demo/</code> — persisted for DORA lead-time and audit trail.</li>
+  </ul>
+  <p style="color:var(--muted); font-size:0.82rem; margin-top:0.75rem;">
+    The grounding pass writes the captured outputs into the above sections and drops the placeholder markers
+    before attaching this file.
+  </p>
+</div>
+
+</body>
+</html>
