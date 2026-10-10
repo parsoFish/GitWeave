@@ -1,0 +1,65 @@
+GitWeave Bootstrap
+==================
+
+Checking prerequisites...
+  git ... ok
+  terraform ... ok
+  python3 ... ok
+
+Verifying directory structure...
+  modules ... ok
+  config ... ok
+  infra ... ok
+  WARNING: 'metrics' missing — creating...
+  .github/workflows ... ok
+
+Initialising Terraform (terraform init)...
+[0m[1mInitializing the backend...[0m
+[0m[1mInitializing provider plugins...[0m
+- Finding integrations/github versions matching "~> 6.0"...
+- Installing integrations/github v6.13.0...
+- Installed integrations/github v6.13.0 (signed by a HashiCorp partner, key ID [0m[1m38027F80D7FD5FB2[0m[0m)
+Partner and community providers are signed by their developers.
+If you'd like to know more about provider signing, you can read about it here:
+https://developer.hashicorp.com/terraform/cli/plugins/signing
+Terraform has created a lock file [1m.terraform.lock.hcl[0m to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.[0m
+
+[0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
+[0m[32m
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.[0m
+
+Installing Python dependencies...
+Collecting pytest>=7.0.0 (from -r requirements.txt (line 1))
+  Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting pyyaml>=6.0 (from -r requirements.txt (line 2))
+  Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting iniconfig>=1.0.1 (from pytest>=7.0.0->-r requirements.txt (line 1))
+  Using cached iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=22 (from pytest>=7.0.0->-r requirements.txt (line 1))
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.5 (from pytest>=7.0.0->-r requirements.txt (line 1))
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting pygments>=2.7.2 (from pytest>=7.0.0->-r requirements.txt (line 1))
+  Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+Using cached iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Using cached packaging-26.3-py3-none-any.whl (129 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+Installing collected packages: pyyaml, pygments, pluggy, packaging, iniconfig, pytest
+Successfully installed iniconfig-2.3.1 packaging-26.3 pluggy-1.6.0 pygments-2.21.0 pytest-9.1.1 pyyaml-6.0.3
+
+================================
+Bootstrap complete.
+
+Activate the Python venv with:  source .venv/bin/activate
