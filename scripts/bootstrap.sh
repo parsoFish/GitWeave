@@ -58,7 +58,7 @@ fi
 
 # Directory structure
 echo "Verifying directory structure..."
-REQUIRED_DIRS=("modules" "config" "infra" "metrics" ".github/workflows")
+REQUIRED_DIRS=("modules" "config" "infra" ".github/workflows")
 for dir in "${REQUIRED_DIRS[@]}"; do
     if [ ! -d "$dir" ]; then
         echo "  WARNING: '$dir' missing — creating..."

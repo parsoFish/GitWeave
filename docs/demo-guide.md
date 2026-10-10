@@ -77,7 +77,7 @@ GitWeave validates repository overlay configurations against
 perform a dry-run validation of every YAML file under `config/`:
 
 ```bash
-python3 -m pip install -r metrics/requirements.txt --quiet
+pip install -r requirements.txt --quiet
 pytest tests/test_overlay_schema.py -v
 ```
 

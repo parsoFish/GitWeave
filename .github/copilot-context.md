@@ -52,6 +52,4 @@ Run tests with:
 # Repository structure tests
 python3 tests/test_structure.py
 
-# Metrics service tests (requires venv)
-pytest metrics/tests/ -v
 ```
