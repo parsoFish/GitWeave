@@ -1,9 +1,9 @@
 # GitWeave End-to-End Demo Guide
 
-A step-by-step walkthrough of all four GitWeave subsystems. A second developer
+A step-by-step walkthrough of the GitWeave subsystems. A second developer
 following this guide from a **fresh clone** will be able to exercise bootstrap,
-overlay config validation, apply-overlays dry-run, Terraform plan, and the
-webhook smoke test — and see passing results for each.
+overlay config validation, apply-overlays dry-run, and Terraform plan — and see
+passing results for each.
 
 ---
 
@@ -60,7 +60,6 @@ Verifying directory structure...
 ✅ modules exists
 ✅ config exists
 ✅ infra exists
-✅ metrics exists
 ✅ .github/workflows exists
 🎉 Bootstrap check complete! You can now proceed to 'infra/' to initialize Terraform.
 ```
@@ -77,7 +76,7 @@ GitWeave validates repository overlay configurations against
 perform a dry-run validation of every YAML file under `config/`:
 
 ```bash
-python3 -m pip install -r metrics/requirements.txt --quiet
+pip install -r requirements.txt --quiet
 pytest tests/test_overlay_schema.py -v
 ```
 
@@ -170,67 +169,6 @@ cd ..
 
 ---
 
-## 6. Webhook Smoke Test
-
-The metrics service exposes `POST /webhook` to receive GitHub webhook events
-and record them for DORA metric calculations.
-
-### 6a. Start the metrics service
-
-```bash
-cd metrics
-pip install -r requirements.txt --quiet
-python3 -m uvicorn src.main:app --port 8000 &
-METRICS_PID=$!
-sleep 2   # allow the server to start
-```
-
-### 6b. Send a test push event
-
-```bash
-curl -s -X POST http://localhost:8000/webhook \
-  -H "Content-Type: application/json" \
-  -H "X-GitHub-Event: push" \
-  -d '{"ref": "refs/heads/main", "repository": {"full_name": "my-org/my-repo"}}' \
-  | python3 -m json.tool
-```
-
-**Expected response (HTTP 200):**
-
-```json
-{
-  "event": "push",
-  "status": "ok"
-}
-```
-
-The `"status": "ok"` field confirms the event was accepted and dispatched.
-
-### 6c. Verify the health check
-
-```bash
-curl -s http://localhost:8000/healthz | python3 -m json.tool
-```
-
-**Expected response:**
-
-```json
-{
-  "status": "ok"
-}
-```
-
-HTTP `200` with `{"status": "ok"}` means the service is healthy.
-
-### 6d. Stop the service
-
-```bash
-kill $METRICS_PID
-cd ..
-```
-
----
-
 ## Summary
 
 | Step | Command | Pass indicator |
@@ -239,7 +177,6 @@ cd ..
 | Overlay validation | `pytest tests/test_overlay_schema.py -v` | All tests `PASSED` |
 | Apply overlays dry-run | `pytest tests/ -k "overlay"` | All tests `PASSED` |
 | Terraform plan | `terraform init && terraform plan` (in `infra/`) | Exit 0, no errors |
-| Webhook smoke test | `curl -X POST … /webhook` | `{"status": "ok"}` with `202` or `200` |
 
-All five steps passing confirms that GitWeave's four subsystems are correctly
+All four steps passing confirms that GitWeave's subsystems are correctly
 wired together on a fresh clone.

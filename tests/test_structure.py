@@ -18,7 +18,6 @@ class TestRepoStructure(unittest.TestCase):
             'modules',
             'config',
             'infra',
-            'metrics',
             '.github/workflows',
         ]
         for d in required_dirs:
@@ -34,7 +33,6 @@ class TestRepoStructure(unittest.TestCase):
             '.github/workflows/gitweave-apply.yaml',
             '.github/workflows/gitweave-infra.yaml',
             'infra/main.tf',
-            'metrics/src/main.py',
         ]
         for f in required_files:
             path = os.path.join(self.repo_root, f)
@@ -107,7 +105,7 @@ class TestRepoStructure(unittest.TestCase):
         content = open(readme_path).read()
 
         # Key directories must be mentioned
-        for directory in ('modules/', 'config/', 'infra/', 'metrics/'):
+        for directory in ('modules/', 'config/', 'infra/'):
             self.assertIn(directory, content,
                           f"README.md does not mention directory '{directory}'")
 

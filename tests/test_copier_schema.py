@@ -8,12 +8,10 @@ These tests verify that schemas/copier-module.schema.json:
   - accepts optional _metadata.min_copier_version and _metadata.parent fields
   - rejects unknown _metadata properties (additionalProperties: false on _metadata)
   - validates Copier question 'type' values when a question definition is present
-  - is satisfied by modules/example-template/copier.yaml
   - is satisfied by every modules/*/copier.yaml discovered in the repository
 
 All tests in this file will fail until:
   - schemas/copier-module.schema.json is created with the correct content
-  - modules/example-template/copier.yaml is created with valid metadata
 """
 
 import json
@@ -27,9 +25,6 @@ from jsonschema import validate, ValidationError
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCHEMA_PATH = os.path.join(REPO_ROOT, "schemas", "copier-module.schema.json")
-EXAMPLE_MODULE_COPIER_YAML = os.path.join(
-    REPO_ROOT, "modules", "example-template", "copier.yaml"
-)
 MODULES_DIR = os.path.join(REPO_ROOT, "modules")
 
 
@@ -430,62 +425,6 @@ class TestVariableQuestionTypeValidation(unittest.TestCase):
             self._validate(
                 self._doc_with_question({"type": "multiline", "help": "Multiline"})
             )
-
-
-class TestExampleTemplateModuleIntegration(unittest.TestCase):
-    """
-    Integration tests — modules/example-template/copier.yaml must exist and
-    satisfy the schema.  These tests will fail until the file is created.
-    """
-
-    def setUp(self):
-        self.schema = _load_schema()
-
-    def test_example_template_copier_yaml_exists(self):
-        """modules/example-template/copier.yaml must be present."""
-        self.assertTrue(
-            os.path.isfile(EXAMPLE_MODULE_COPIER_YAML),
-            f"modules/example-template/copier.yaml is missing — expected at "
-            f"{EXAMPLE_MODULE_COPIER_YAML}",
-        )
-
-    def test_example_template_copier_yaml_is_parseable_yaml(self):
-        """modules/example-template/copier.yaml must parse as a YAML mapping."""
-        with open(EXAMPLE_MODULE_COPIER_YAML) as f:
-            doc = yaml.safe_load(f)
-        self.assertIsInstance(
-            doc,
-            dict,
-            "modules/example-template/copier.yaml did not parse as a YAML mapping",
-        )
-
-    def test_example_template_copier_yaml_passes_schema_validation(self):
-        """modules/example-template/copier.yaml must satisfy the full JSON Schema."""
-        with open(EXAMPLE_MODULE_COPIER_YAML) as f:
-            doc = yaml.safe_load(f)
-        validate(instance=doc, schema=self.schema)  # must not raise
-
-    def test_example_template_name_follows_snake_case(self):
-        """The name in the example module must match the snake_case pattern."""
-        with open(EXAMPLE_MODULE_COPIER_YAML) as f:
-            doc = yaml.safe_load(f)
-        name = doc.get("_metadata", {}).get("name", "")
-        self.assertRegex(
-            name,
-            r"^[a-z][a-z0-9_]*$",
-            f"example-template name '{name}' does not match snake_case pattern",
-        )
-
-    def test_example_template_version_follows_calver(self):
-        """The version in the example module must match the CalVer YYYYMMDD.Patch pattern."""
-        with open(EXAMPLE_MODULE_COPIER_YAML) as f:
-            doc = yaml.safe_load(f)
-        version = str(doc.get("_metadata", {}).get("version", ""))
-        self.assertRegex(
-            version,
-            r"^\d{8}\.\d+$",
-            f"example-template version '{version}' does not match CalVer YYYYMMDD.Patch",
-        )
 
 
 class TestAllModuleCopierYamlFilesAreSchemaValid(unittest.TestCase):

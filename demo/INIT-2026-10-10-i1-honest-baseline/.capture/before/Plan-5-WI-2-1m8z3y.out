@@ -1,0 +1,58 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 1 item
+
+tests/test_structure.py F                                                [100%]
+
+=================================== FAILURES ===================================
+______________ TestRepoStructure.test_bootstrap_script_exits_zero ______________
+
+self = <test_structure.TestRepoStructure testMethod=test_bootstrap_script_exits_zero>
+
+    def test_bootstrap_script_exits_zero(self):
+        """bootstrap.sh should succeed when all prerequisites (git, terraform, python3) are present."""
+        script = os.path.join(self.repo_root, 'scripts', 'bootstrap.sh')
+        self.assertTrue(os.path.isfile(script), "scripts/bootstrap.sh is missing")
+        result = subprocess.run(
+            ['bash', script],
+            capture_output=True,
+            text=True,
+            cwd=self.repo_root,
+        )
+>       self.assertEqual(
+            result.returncode,
+            0,
+            f"bootstrap.sh exited {result.returncode}:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}",
+        )
+E       AssertionError: 1 != 0 : bootstrap.sh exited 1:
+E       STDOUT: GitWeave Bootstrap
+E       ==================
+E       
+E       Checking prerequisites...
+E         git ... ok
+E         terraform ... ok
+E         python3 ... ok
+E         docker ... ok
+E         docker daemon ... running
+E       
+E       Verifying directory structure...
+E         modules ... ok
+E         config ... ok
+E         infra ... ok
+E         metrics ... ok
+E         .github/workflows ... ok
+E       
+E       Starting metrics stack (docker compose up -d)...
+E       
+E       STDERR: time="2026-10-10T18:12:09+10:00" level=warning msg="Found orphan containers (metrics-grafana-1, metrics-prometheus-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+E        Container metrics-postgres-1 Recreate 
+E        Container metrics-postgres-1 Recreated 
+E        Container metrics-postgres-1 Starting 
+E       Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint metrics-postgres-1 (ce634d8e424d576fe138031a5463c2c9b6795f500e67aec2f51b0ffd6c8f10bf): Bind for 127.0.0.1:5432 failed: port is already allocated
+
+tests/test_structure.py:55: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero
+============================== 1 failed in 0.55s ===============================

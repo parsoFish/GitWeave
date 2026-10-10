@@ -31,3 +31,6 @@ LOCAL_SETUP.md
 AGENT.md
 PROMPT.md
 fix_plan.md
+secrets.env
+.pytest_cache/
+_preflight*.md

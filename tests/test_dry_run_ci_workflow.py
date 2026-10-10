@@ -288,21 +288,6 @@ class TestDryRunSmokeJobCommand(unittest.TestCase):
             "assertion could be silently swallowed, giving a false-green CI result.",
         )
 
-    def test_job_greps_output_for_example_template_string(self):
-        """
-        A step must grep (or otherwise assert) that stdout contains 'example-template'.
-        This validates that the module was actually processed, not just that the
-        script exited 0.
-        """
-        run_text = self._steps_run_text()
-        self.assertIn(
-            "example-template",
-            run_text,
-            "No step checks that the dry-run output contains 'example-template'. "
-            "The CI job must grep stdout for 'example-template' after the dry-run "
-            "to confirm the module was identified and processed.",
-        )
-
     def test_job_uses_grep_to_assert_output_content(self):
         """
         The step must use 'grep' (or an equivalent assertion tool) to inspect
