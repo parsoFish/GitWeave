@@ -74,7 +74,6 @@ A lightweight component (Service or Workflow) that:
 │       └── gitweave-infra.yaml  # Applies infra/ changes
 ├── config/                      # Overlay Configuration (YAML)
 ├── infra/                       # Terraform Bootstrap (Org Baseline)
-├── metrics/                     # Metrics Observer Service (Python)
 ├── modules/                     # Template Modules
 ├── scripts/                     # Helper scripts
 └── README.md                    # This file
