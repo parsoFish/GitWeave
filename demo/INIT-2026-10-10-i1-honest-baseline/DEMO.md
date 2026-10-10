@@ -1,12 +1,12 @@
 # I1 — An honest baseline
 
-> _Derived from `demo.json` (D-07). Essence:_ I1 — An honest baseline — 6 work items delivered against 12 acceptance criteria, 2 merge-boundary gates run.
+> _Derived from `demo.json` (D-07). Essence:_ I1 — An honest baseline — 7 work items delivered against 17 acceptance criteria, 2 merge-boundary gates run.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-The gitweave repo shed its April-2026 spike artefacts — a dead metrics service, stub modules, broken tests, and stale CI jobs — leaving only live tooling. Developers now clone a repo whose full test suite passes green, whose bootstrap script runs without Docker, and whose legal files (AGPL-3 LICENSE, Apache ICLA CLA.md) are in place. The baseline is honest: every file present is there because something needs it.
+Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead modules, a FastAPI metrics stack, failing tests, no licence, and a bootstrap that required Docker. This change deletes everything that was never shipped, archives the pre-prune HEAD, adds AGPL-3.0 licence and Apache CLA, and leaves the suite green. A contributor can now clone, run bootstrap.sh without Docker, run pytest, and get zero failures.
 
 ## Summary
 
@@ -16,35 +16,36 @@ The gitweave repo shed its April-2026 spike artefacts — a dead metrics service
 - WI-4 [complete] # WI-4: Replace CLAUDE.md with one-line pointer and update .gitignore
 - WI-5 [complete] # WI-5: Add LICENSE, CLA.md, update README, fix test_structure.py README assertion
 - WI-6 [complete] # WI-6 — gate-fix concern (code-fix)
-- Commit: `91a37bf7191f63602fa9fb357c156d5654fafda2`
+- WI-7 [complete] # WI-7 — review-fix concern (code-fix)
+- Commit: `2547124c33e23da91cf1c782324346786006f864`
 
 ## Visual Changes
 
-### Archive branch exists at pre-prune HEAD
+### Archive branch exists at pre-prune SHA
 
 
-### Retired paths confirmed absent
+### Retired directories and files are absent
 
 
-### test_structure.py passes without stale metrics/modules assertions
+### test_structure.py passes without deselecting metrics assertions
 
 
 ### bootstrap.sh exits 0 without Docker
 
 
-### Bootstrap test passes — no --deselect needed
+### bootstrap_script_exits_zero passes unaided
 
 
-### example-template removed from config and CI yaml
+### example-template removed from config and ci.yaml
 
 
-### CLAUDE.md is a one-liner; .gitignore covers required entries
+### CLAUDE.md is one-line pointer; .gitignore covers secrets.env/.pytest_cache/_preflight
 
 
-### LICENSE is AGPL-3 verbatim; CLA.md is Apache ICLA
+### AGPL-3.0 licence and Apache CLA present
 
 
-### Full gate suite green — no cross-WI regression
+### Full suite green — zero failures, zero errors
 
 
 ## Test Evidence
@@ -70,6 +71,11 @@ The gitweave repo shed its April-2026 spike artefacts — a dead metrics service
 - (WI-5) GIVEN the repo root after this WI WHEN `python3 -m pytest tests/test_legal_files.py` runs THEN all assertions pass — LICENSE is AGPL-3.0-or-later verbatim (includes 'or later' notice), CLA.md is Apache ICLA standard form
 - (WI-5) GIVEN README.md after update WHEN `python3 -m pytest tests/test_structure.py::TestRepoStructure::test_readme_contains_bootstrap_instructions` runs THEN passes without referencing metrics/ — the assertion for metrics/ is removed from test_structure.py in this WI
 - (WI-6) GIVEN the initiative branch is integrated at tip WHEN the full project test suite runs (the merge-boundary gate) THEN it passes green — no cross-WI regression remains
+- (WI-7) GIVEN the demo region "checkpoint-9" WHEN the operator reviews the change THEN Given the PR head, when `python3 -m pytest tests/` runs, then it exits 0 with zero failed and zero errored tests — no skip, xfail or deselect added. Measured on 39ad991: 242 failed / 606 passed. Operator ruling 2026-10-10.
+- (WI-7) GIVEN the demo region "ac-2" WHEN the operator reviews the change THEN Given the April specs still failing on 39ad991 (test_python_service_module, test_terraform_module_template, test_terraform_module_validate, test_module_update_pr_generation, test_apply_overlays_script, test_apply_overlays_behavioral_contracts, test_dry_run_summary_table, test_recursive_config_discovery, test_tf_nested_teams, test_oidc_workflow, test_tf_oidc_structure, test_tf_oidc_validate, test_brownfield_import_structure), when the tree is read, then every test asserting behaviour that does not exist is deleted and every passing test asserting real behaviour is kept (operator ruling: retire, archive keeps them).
+- (WI-7) GIVEN the demo region "ac-6" WHEN the operator reviews the change THEN Given tests/test_overlay_example_config.py, tests/test_dry_run_smoke.py, tests/test_dry_run_ci_workflow.py and tests/test_pruned_artefacts.py, when they run against the pruned tree, then they pass and none asserts on modules/example-template.
+- (WI-7) GIVEN the demo region "ac-4" WHEN the operator reviews the change THEN Given scripts/bootstrap.sh on a fresh clone, when it runs, then it exits 0 and creates no metrics/ directory (drop metrics from REQUIRED_DIRS).
+- (WI-7) GIVEN the demo region "ac-11" WHEN the operator reviews the change THEN Given docs/demo-guide.md, README.md and .github/copilot-context.md, when they are read, then none references a removed path (metrics/, metrics/requirements.txt, modules/example-template, docker compose, scripts/generate-update-pr.py).
 
 ## Files Changed
 
@@ -77,6 +83,7 @@ The gitweave repo shed its April-2026 spike artefacts — a dead metrics service
 - `.forge/demo/demo.lock.json`
 - `.forge/demo/history/2026-10-09T07-02-03-1027e4cf/DEMO.html`
 - `.forge/demo/history/2026-10-09T07-02-03-1027e4cf/meta.json`
+- `.github/copilot-context.md`
 - `.github/workflows/ci.yaml`
 - `.github/workflows/metrics-ci.yaml`
 - `.github/workflows/metrics-docker.yaml`
@@ -84,7 +91,66 @@ The gitweave repo shed its April-2026 spike artefacts — a dead metrics service
 - `CLA.md`
 - `CLAUDE.md`
 - `LICENSE`
+- `README.md`
 - `config/repos/example.yaml`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-1-WI-1-1yki11.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-1-WI-1-1yki11.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-1-WI-1-1yki11.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-2-WI-1-e7s99z.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-2-WI-1-e7s99z.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-2-WI-1-e7s99z.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-3-WI-1-sw6ji0.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-3-WI-1-sw6ji0.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-3-WI-1-sw6ji0.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-4-WI-2-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-4-WI-2-17kktq.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-4-WI-2-17kktq.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-5-WI-2-1m8z3y.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-5-WI-2-1m8z3y.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-5-WI-2-1m8z3y.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-6-WI-3-1w9c71.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-6-WI-3-1w9c71.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-6-WI-3-1w9c71.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-7-WI-4-gknmf3.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-7-WI-4-gknmf3.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-7-WI-4-gknmf3.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-8-WI-5-v91wn5.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-8-WI-5-v91wn5.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-8-WI-5-v91wn5.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-2-WI-1-e7s99z.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-2-WI-1-e7s99z.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-2-WI-1-e7s99z.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-3-WI-1-sw6ji0.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-3-WI-1-sw6ji0.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-3-WI-1-sw6ji0.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-4-WI-2-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-4-WI-2-17kktq.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-4-WI-2-17kktq.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-5-WI-2-1m8z3y.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-5-WI-2-1m8z3y.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-5-WI-2-1m8z3y.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-6-WI-3-1w9c71.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-6-WI-3-1w9c71.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-6-WI-3-1w9c71.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-7-WI-4-gknmf3.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-7-WI-4-gknmf3.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-7-WI-4-gknmf3.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-8-WI-5-v91wn5.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-8-WI-5-v91wn5.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-8-WI-5-v91wn5.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/DEMO.md`
+- `demo/INIT-2026-10-10-i1-honest-baseline/demo-plan.json`
+- `demo/INIT-2026-10-10-i1-honest-baseline/demo.json`
+- `docs/demo-guide.md`
 - `metrics/Dockerfile`
 - `metrics/alembic.ini`
 - `metrics/docker-compose.yml`
@@ -145,22 +211,38 @@ The gitweave repo shed its April-2026 spike artefacts — a dead metrics service
 - `requirements.txt`
 - `scripts/bootstrap.sh`
 - `scripts/generate-update-pr.py`
+- `tests/test_apply_overlays_behavioral_contracts.py`
+- `tests/test_apply_overlays_script.py`
 - `tests/test_bootstrap_expand.py`
+- `tests/test_brownfield_import_structure.py`
 - `tests/test_copier_schema.py`
 - `tests/test_demo_guide.py`
 - `tests/test_dora_metrics_ci_workflow.py`
+- `tests/test_dry_run_ci_workflow.py`
+- `tests/test_dry_run_smoke.py`
+- `tests/test_dry_run_summary_table.py`
 - `tests/test_example_template_removed.py`
 - `tests/test_legal_files.py`
 - `tests/test_metrics_docker_workflow.py`
 - `tests/test_metrics_dockerfile.py`
+- `tests/test_module_update_pr_generation.py`
 - `tests/test_modules/__init__.py`
 - `tests/test_modules/test_python_service.py`
 - `tests/test_modules/test_terraform_module.py`
+- `tests/test_oidc_workflow.py`
+- `tests/test_overlay_example_config.py`
 - `tests/test_pruned_artefacts.py`
+- `tests/test_python_service_module.py`
+- `tests/test_recursive_config_discovery.py`
 - `tests/test_repo_hygiene.py`
 - `tests/test_stale_remote_branches.py`
 - `tests/test_structure.py`
+- `tests/test_terraform_module_template.py`
+- `tests/test_terraform_module_validate.py`
+- `tests/test_tf_nested_teams.py`
+- `tests/test_tf_oidc_structure.py`
+- `tests/test_tf_oidc_validate.py`
 
 ```
-87 files changed, 1021 insertions(+), 18257 deletions(-)
+163 files changed, 1951 insertions(+), 26808 deletions(-)
 ```

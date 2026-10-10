@@ -16,15 +16,15 @@ Verifying directory structure...
   .github/workflows ... ok
 
 Starting metrics stack (docker compose up -d)...
-[stderr] time="2026-10-10T16:49:07+10:00" level=warning msg="Found orphan containers (metrics-grafana-1, metrics-prometheus-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+[stderr] time="2026-10-10T17:34:57+10:00" level=warning msg="Found orphan containers (metrics-grafana-1, metrics-prometheus-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
  Container metrics-postgres-1 Starting 
  Container metrics-postgres-1 Started 
  Container metrics-postgres-1 Waiting 
  Container metrics-postgres-1 Healthy 
  Container metrics-migrate-1 Starting 
  Container metrics-migrate-1 Started 
- Container metrics-migrate-1 Waiting 
  Container metrics-postgres-1 Waiting 
+ Container metrics-migrate-1 Waiting 
  Container metrics-postgres-1 Healthy 
  Container metrics-migrate-1 Error service "migrate" didn't complete successfully: exit 1
 service "migrate" didn't complete successfully: exit 1
