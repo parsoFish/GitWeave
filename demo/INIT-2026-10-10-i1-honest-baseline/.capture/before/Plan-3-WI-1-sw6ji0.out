@@ -6,4 +6,4 @@ collected 8 items / 1 deselected / 7 selected
 
 tests/test_structure.py .......                                          [100%]
 
-======================= 7 passed, 1 deselected in 0.04s ========================
+======================= 7 passed, 1 deselected in 0.03s ========================

@@ -16,7 +16,7 @@ Verifying directory structure...
   .github/workflows ... ok
 
 Starting metrics stack (docker compose up -d)...
-[stderr] time="2026-10-10T17:34:57+10:00" level=warning msg="Found orphan containers (metrics-grafana-1, metrics-prometheus-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+[stderr] time="2026-10-10T18:12:00+10:00" level=warning msg="Found orphan containers (metrics-grafana-1, metrics-prometheus-1) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
  Container metrics-postgres-1 Starting 
  Container metrics-postgres-1 Started 
  Container metrics-postgres-1 Waiting 

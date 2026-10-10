@@ -1,12 +1,12 @@
 # I1 — An honest baseline
 
-> _Derived from `demo.json` (D-07). Essence:_ I1 — An honest baseline — 7 work items delivered against 17 acceptance criteria, 2 merge-boundary gates run.
+> _Derived from `demo.json` (D-07). Essence:_ I1 — An honest baseline — 8 work items delivered against 19 acceptance criteria, 2 merge-boundary gates run.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead modules, a FastAPI metrics stack, failing tests, no licence, and a bootstrap that required Docker. This change deletes everything that was never shipped, archives the pre-prune HEAD, adds AGPL-3.0 licence and Apache CLA, and leaves the suite green. A contributor can now clone, run bootstrap.sh without Docker, run pytest, and get zero failures.
+Establishes an honest baseline for GitWeave by removing the April-2026 spike artefacts — the metrics FastAPI service, retired module stubs, and dead test files — that had no live implementation and caused 242 test failures. The pre-prune state is preserved on a remote archive branch. bootstrap.sh no longer requires Docker; runtime dependencies move to a new root requirements.txt. CI config and example.yaml drop the deleted example-template module. CLAUDE.md becomes a one-line pointer to AGENTS.md. LICENSE (AGPL-3.0-or-later) and CLA.md (ASF ICLA verbatim) are added. The full test suite passes green for the first time.
 
 ## Summary
 
@@ -17,35 +17,42 @@ Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead
 - WI-5 [complete] # WI-5: Add LICENSE, CLA.md, update README, fix test_structure.py README assertion
 - WI-6 [complete] # WI-6 — gate-fix concern (code-fix)
 - WI-7 [complete] # WI-7 — review-fix concern (code-fix)
-- Commit: `2547124c33e23da91cf1c782324346786006f864`
+- WI-8 [complete] # WI-8 — review-fix concern (code-fix)
+- Commit: `0162a36ae947629b6fb0be6963bca93c4c96f4c3`
 
 ## Visual Changes
 
-### Archive branch exists at pre-prune SHA
+### Archive branch exists at pre-prune HEAD SHA
 
 
-### Retired directories and files are absent
+### All retired paths confirmed absent
 
 
-### test_structure.py passes without deselecting metrics assertions
+### test_structure.py passes with stale metrics assertions removed
 
 
 ### bootstrap.sh exits 0 without Docker
 
 
-### bootstrap_script_exits_zero passes unaided
+### Bootstrap test passes — no --deselect needed
 
 
-### example-template removed from config and ci.yaml
+### example-template removed from config and ci.yaml smoke
 
 
-### CLAUDE.md is one-line pointer; .gitignore covers secrets.env/.pytest_cache/_preflight
+### ci.yaml valid YAML after smoke assertion removed
 
 
-### AGPL-3.0 licence and Apache CLA present
+### CLAUDE.md contains exactly 'See AGENTS.md.'
 
 
-### Full suite green — zero failures, zero errors
+### Repo hygiene gate — CLAUDE.md pointer and .gitignore entries
+
+
+### LICENSE is AGPL-3.0-or-later and CLA.md is ASF ICLA verbatim
+
+
+### Core schema suite green — no cross-WI regression
 
 
 ## Test Evidence
@@ -76,6 +83,8 @@ Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead
 - (WI-7) GIVEN the demo region "ac-6" WHEN the operator reviews the change THEN Given tests/test_overlay_example_config.py, tests/test_dry_run_smoke.py, tests/test_dry_run_ci_workflow.py and tests/test_pruned_artefacts.py, when they run against the pruned tree, then they pass and none asserts on modules/example-template.
 - (WI-7) GIVEN the demo region "ac-4" WHEN the operator reviews the change THEN Given scripts/bootstrap.sh on a fresh clone, when it runs, then it exits 0 and creates no metrics/ directory (drop metrics from REQUIRED_DIRS).
 - (WI-7) GIVEN the demo region "ac-11" WHEN the operator reviews the change THEN Given docs/demo-guide.md, README.md and .github/copilot-context.md, when they are read, then none references a removed path (metrics/, metrics/requirements.txt, modules/example-template, docker compose, scripts/generate-update-pr.py).
+- (WI-8) GIVEN the demo region "ac-11" WHEN the operator reviews the change THEN docs/demo-guide.md still walks through the retired metrics service at head 1d228b1: section 6 "Webhook Smoke Test" (6a "Start the metrics service", cd metrics, uvicorn, curl :8000/webhook, :8000/healthz), the bootstrap output line "✅ metrics exists", and the summary-table "Webhook smoke test" row. Given the pruned tree, when docs/demo-guide.md is read, then it describes only what exists (overlay validation, apply-overlays dry-run, the Terraform section until I2) and every command it shows runs green on a fresh clone; `grep -n -i metrics docs/demo-guide.md` returns nothing.
+- (WI-8) GIVEN the demo region "ac-10" WHEN the operator reviews the change THEN CLA.md is an 8-section restructured form "based on" the Apache ICLA v2.0, but the approved plan AC requires the ASF Individual CLA v2.0 canonical text verbatim (project name substituted only). Given the repo root, when CLA.md is read, then it is the verbatim ASF ICLA v2.0 text with "The Apache Software Foundation" replaced by the GitWeave project/owner, and tests/test_legal_files.py checks a verbatim passage.
 
 ## Files Changed
 
@@ -120,6 +129,9 @@ Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.filmstrip.png`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.out`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-6-19xg6v.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-7-19xg6v.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-7-19xg6v.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/after/Plan-9-WI-7-19xg6v.webm`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.filmstrip.png`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.out`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-1-WI-1-1yki11.webm`
@@ -147,6 +159,9 @@ Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.filmstrip.png`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.out`
 - `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-6-19xg6v.webm`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-7-19xg6v.filmstrip.png`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-7-19xg6v.out`
+- `demo/INIT-2026-10-10-i1-honest-baseline/.capture/before/Plan-9-WI-7-19xg6v.webm`
 - `demo/INIT-2026-10-10-i1-honest-baseline/DEMO.md`
 - `demo/INIT-2026-10-10-i1-honest-baseline/demo-plan.json`
 - `demo/INIT-2026-10-10-i1-honest-baseline/demo.json`
@@ -244,5 +259,5 @@ Operators inheriting this repo hit a wall of April-2026 spike artefacts — dead
 - `tests/test_tf_oidc_validate.py`
 
 ```
-163 files changed, 1951 insertions(+), 26808 deletions(-)
+169 files changed, 2281 insertions(+), 26875 deletions(-)
 ```
