@@ -75,6 +75,35 @@ class TestLegalFiles(unittest.TestCase):
             "CLA.md missing patent license grant",
         )
 
+    def test_cla_verbatim_asf_icla_passage(self):
+        """CLA.md must be the verbatim ASF ICLA v2.0 text (project name substituted).
+
+        Checks a distinctive verbatim passage that only appears in the canonical
+        ASF ICLA v2.0 text and would be absent from a restructured paraphrase.
+        """
+        path = os.path.join(REPO_ROOT, "CLA.md")
+        import re
+        content = open(path).read()
+        # Normalise whitespace so line-wrap differences don't cause false failures
+        normalized = re.sub(r"\s+", " ", content)
+        # Verbatim passage from ASF ICLA v2.0 §1 (with "Foundation" → "GitWeave")
+        self.assertIn(
+            'intentionally submitted by You to GitWeave for inclusion in, '
+            'or documentation of, any of the products owned or managed by GitWeave',
+            normalized,
+            "CLA.md is missing the verbatim ASF ICLA v2.0 §1 Contribution definition "
+            "(with 'The Apache Software Foundation' replaced by 'GitWeave'). "
+            "The file must be the verbatim ASF ICLA v2.0 text, not a restructured paraphrase.",
+        )
+        # Verbatim passage from ASF ICLA v2.0 preamble
+        self.assertIn(
+            'You accept and agree to the following terms and conditions for '
+            'Your present and future Contributions submitted to GitWeave.',
+            normalized,
+            "CLA.md is missing the verbatim ASF ICLA v2.0 preamble acceptance clause "
+            "(with 'The Apache Software Foundation' replaced by 'GitWeave').",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
