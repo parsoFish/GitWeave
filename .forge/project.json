@@ -48,10 +48,36 @@
         "tests/test_copier_schema.py",
         "tests/test_copier_schema_ci.py"
       ]
+    },
+    "acceptance": {
+      "match": "tests/acceptance",
+      "requiresEnv": [
+        "GW_ORG",
+        "GW_APP_ID",
+        "GW_APP_INSTALLATION_ID",
+        "GW_APP_PRIVATE_KEY_PATH"
+      ]
     }
   },
   "kb": "gitweave",
   "skills": [
     "demo-design"
-  ]
+  ],
+  "demoMeans": {
+    "commands": [
+      "gw plan"
+    ],
+    "api": {
+      "commands": [
+        "gw apply --json",
+        "gw org show --json",
+        "gw org repos --json",
+        "gw org teams --json",
+        "gw org rulesets --json"
+      ],
+      "ignoreKeys": [
+        "default_branch_sha"
+      ]
+    }
+  }
 }
