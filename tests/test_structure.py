@@ -17,7 +17,7 @@ class TestRepoStructure(unittest.TestCase):
         required_dirs = [
             'modules',
             'config',
-            'infra',
+            'gitweave',
             '.github/workflows',
         ]
         for d in required_dirs:
@@ -31,8 +31,8 @@ class TestRepoStructure(unittest.TestCase):
         required_files = [
             'README.md',
             '.github/workflows/gitweave-apply.yaml',
-            '.github/workflows/gitweave-infra.yaml',
-            'infra/main.tf',
+            'pyproject.toml',
+            'gitweave/__init__.py',
         ]
         for f in required_files:
             path = os.path.join(self.repo_root, f)
@@ -41,7 +41,7 @@ class TestRepoStructure(unittest.TestCase):
     # --- bootstrap.sh ---
 
     def test_bootstrap_script_exits_zero(self):
-        """bootstrap.sh should succeed when all prerequisites (git, terraform, python3) are present."""
+        """bootstrap.sh should succeed when git and python3 are present."""
         script = os.path.join(self.repo_root, 'scripts', 'bootstrap.sh')
         self.assertTrue(os.path.isfile(script), "scripts/bootstrap.sh is missing")
         result = subprocess.run(
@@ -78,25 +78,6 @@ class TestRepoStructure(unittest.TestCase):
         self.assertIn('workflow_dispatch', doc.get('on', {}),
                       "gitweave-apply.yaml is missing workflow_dispatch trigger")
 
-    # --- FR-007: gitweave-infra.yaml YAML validity and trigger paths ---
-
-    def test_gitweave_infra_workflow_is_valid_yaml_and_triggers_on_infra(self):
-        """FR-007: gitweave-infra.yaml must be valid YAML and trigger on infra/** push to main."""
-        path = os.path.join(self.repo_root, '.github/workflows/gitweave-infra.yaml')
-        with open(path) as f:
-            doc = yaml.safe_load(f)
-
-        self.assertIsInstance(doc, dict, "gitweave-infra.yaml did not parse as a YAML mapping")
-
-        push_on = doc.get('on', {}).get('push', {})
-        self.assertIn('main', push_on.get('branches', []),
-                      "gitweave-infra.yaml does not trigger on branch 'main'")
-        self.assertIn('infra/**', push_on.get('paths', []),
-                      "gitweave-infra.yaml does not scope trigger to 'infra/**'")
-
-        self.assertIn('workflow_dispatch', doc.get('on', {}),
-                      "gitweave-infra.yaml is missing workflow_dispatch trigger")
-
     # --- FR-005: README bootstrap content ---
 
     def test_readme_contains_bootstrap_instructions(self):
@@ -105,7 +86,7 @@ class TestRepoStructure(unittest.TestCase):
         content = open(readme_path).read()
 
         # Key directories must be mentioned
-        for directory in ('modules/', 'config/', 'infra/'):
+        for directory in ('modules/', 'config/'):
             self.assertIn(directory, content,
                           f"README.md does not mention directory '{directory}'")
 

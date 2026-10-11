@@ -1,0 +1,24 @@
+[project]
+name = "gitweave"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "PyJWT>=2.8",
+    "cryptography>=41",
+    "PyGithub>=2.3",
+    "PyYAML>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.scripts]
+gw = "gitweave.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["gitweave*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

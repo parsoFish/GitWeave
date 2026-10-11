@@ -8,7 +8,7 @@ Instead of building a heavy standalone platform, GitWeave overlays your GitHub o
 
 *   **Control Repo Centricity**: Run your entire platform from one core repo.
 *   **Provider-Native**: Use GitHub for hosting, CI, Identity, and Work Management.
-*   **Platform as Code**: Define behavior via configuration and Terraform, not bespoke services.
+*   **Platform as Code**: Define behavior via configuration and code, not bespoke services.
 *   **Greenfield & Brownfield**: Bootstrap new orgs or safely overlay existing ones.
 
 ## Constitution & Governance
@@ -17,17 +17,17 @@ Key principles:
 
 *   **Control Repo Centricity**: All behavior drives from this repo.
 *   **Provider-Native First**: Don't re-invent the wheel (use Actions, Issues, Packages).
-*   **Platform as Code**: Terraform is the standard for infra; Actions for orchestration.
-*   **Local Reproducibility**: CLI tools must support local dry-runs (`gw:plan`).
+*   **Platform as Code**: Config-driven management via `gw`; Actions for orchestration.
+*   **Local Reproducibility**: CLI tools must support local dry-runs (`gw plan`).
 *   **Observability**: DORA metrics via Prometheus/OpenTelemetry standards.
 
 ## 🧩 Core Concepts
 
 ### Control Repository
 The heart of GitWeave. It holds:
-*   **Terraform**: Modules for provisioning GitHub resources and cloud infra.
 *   **Workflows**: GitHub Actions to apply configuration.
 *   **Overlay Config**: Tracks which templates apply to which managed repos.
+*   **`gw` CLI**: The engine for managing GitHub resources (repos, teams, rulesets).
 
 ### Template Modules
 Composable building blocks stored in `modules/` (e.g., `modules/lang-node`, `modules/workflows/ci-basic`).
@@ -61,7 +61,7 @@ A lightweight component (Service or Workflow) that:
 ## 🤖 Automation Model
 
 *   **GitHub Actions**: The primary orchestrator for applying changes.
-*   **Terraform**: The engine for stateful infrastructure (repos, teams, cloud resources).
+*   **`gw` CLI**: The engine for stateful resource management (repos, teams, rulesets).
 *   **Docker (Optional)**: Only used for rich dashboards or long-running aggregators if Actions are insufficient.
 
 ## 📂 Project Structure
@@ -70,10 +70,8 @@ A lightweight component (Service or Workflow) that:
 .
 ├── .github/
 │   └── workflows/
-│       ├── gitweave-apply.yaml  # Applies config/ changes
-│       └── gitweave-infra.yaml  # Applies infra/ changes
+│       └── gitweave-apply.yaml  # Applies config/ changes
 ├── config/                      # Overlay Configuration (YAML)
-├── infra/                       # Terraform Bootstrap (Org Baseline)
 ├── modules/                     # Template Modules
 ├── scripts/                     # Helper scripts
 └── README.md                    # This file
@@ -95,22 +93,24 @@ To initialize a new GitWeave Control Repository:
     ./scripts/bootstrap.sh
     ```
 
-3.  **Initialize Infrastructure**
-    Navigate to `infra/` to set up the organization baseline.
-    **Note**: You must configure your remote state backend (S3, GCS, etc.) in `main.tf` or `backend.tf` before running this in production. For local testing, you can skip backend configuration.
-    **Auth**: Ensure `GITHUB_TOKEN` is set or you are logged in via `gh auth login` so Terraform can manage the organization.
+3.  **Preview Changes**
+    Perform a dry-run to see what `gw` would apply to your organisation.
     ```bash
-    cd infra
-    terraform init
-    terraform apply
+    gw plan
     ```
 
-4.  **Push to GitHub**
+4.  **Apply Configuration**
+    Apply the configuration to your GitHub organisation.
+    ```bash
+    gw apply
+    ```
+
+5.  **Push to GitHub**
     ```bash
     git add .
     git commit -m "chore: bootstrap control repo"
     git push origin main
     ```
 
-5.  **Verify Workflows**
-    Check the "Actions" tab in GitHub to ensure `gitweave-infra` and `gitweave-apply` are running correctly.
+6.  **Verify Workflows**
+    Check the "Actions" tab in GitHub to ensure `gitweave-apply` is running correctly.

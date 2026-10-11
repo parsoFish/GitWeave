@@ -6,6 +6,10 @@ name: GitWeave Apply
     branches: ["main"]
     paths:
       - "config/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "config/**"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  apply:
+  dry-run-smoke:
     name: Apply Configuration
     runs-on: ubuntu-latest
 
@@ -35,3 +39,46 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 scripts/apply-overlays.py config/repos/
+
+  plan:
+    name: gw plan (credential-free)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install gw
+        run: pip install -e .
+      - name: Plan (fixture mode — no credentials)
+        run: gw plan --fixture tests/fixtures/org-empty.json
+
+  apply:
+    name: gw apply (live)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install gw
+        run: pip install -e .
+      - name: Write private key to temp file
+        run: |
+          KEY_FILE=$(mktemp)
+          echo "$GW_APP_PRIVATE_KEY" > "$KEY_FILE"
+          echo "GW_APP_PRIVATE_KEY_PATH=$KEY_FILE" >> "$GITHUB_ENV"
+          echo "KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
+        env:
+          GW_APP_PRIVATE_KEY: ${{ secrets.GW_APP_PRIVATE_KEY }}
+      - name: Apply
+        run: gw apply
+        env:
+          GW_ORG: ${{ secrets.GW_ORG }}
+          GW_APP_ID: ${{ secrets.GW_APP_ID }}
+          GW_APP_INSTALLATION_ID: ${{ secrets.GW_APP_INSTALLATION_ID }}
+      - name: Cleanup key file
+        if: always()
+        run: rm -f "$KEY_FILE"

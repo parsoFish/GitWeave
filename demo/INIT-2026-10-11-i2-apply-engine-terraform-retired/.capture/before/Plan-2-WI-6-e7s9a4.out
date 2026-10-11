@@ -1,0 +1,7 @@
+[stderr] Traceback (most recent call last):
+  File "/home/parso/.local/bin/gw", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i2-apply-engine-terraform-retired/gitweave/cli.py", line 37, in main
+    raise NotImplementedError(f"{args.command!r} not yet implemented")
+NotImplementedError: 'plan' not yet implemented

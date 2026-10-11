@@ -1,0 +1,6 @@
+rulesets:
+  - name: forge-main-protection
+    target: branch
+    enforcement: active
+    rules:
+      - type: required_linear_history
