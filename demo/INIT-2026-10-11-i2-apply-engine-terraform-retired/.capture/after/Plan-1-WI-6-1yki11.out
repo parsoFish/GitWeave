@@ -1,0 +1,5 @@
+  = org_settings/org_settings
+  + team/engineering
+  + team/platform
+  + repo/example-smoke-repo
+  + ruleset/forge-main-protection

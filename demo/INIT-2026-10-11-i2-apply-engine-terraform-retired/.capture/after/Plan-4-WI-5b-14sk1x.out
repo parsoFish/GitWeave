@@ -1,0 +1,15 @@
+[stderr] Traceback (most recent call last):
+  File "/home/parso/.local/bin/gw", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i2-apply-engine-terraform-retired/gitweave/cli.py", line 121, in main
+    args.func(args)
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i2-apply-engine-terraform-retired/gitweave/cli.py", line 82, in cmd_org_teams
+    [{"name": t.name} for t in TeamsManager(_get_org_client()).list_managed()],
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i2-apply-engine-terraform-retired/gitweave/managers/teams.py", line 21, in __init__
+    self._prefix = _get_prefix()
+                   ^^^^^^^^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i2-apply-engine-terraform-retired/gitweave/managers/teams.py", line 10, in _get_prefix
+    raise EnvironmentError("FORGE_RESOURCE_PREFIX must be set and non-empty")
+OSError: FORGE_RESOURCE_PREFIX must be set and non-empty
