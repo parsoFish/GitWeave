@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["rulesets"],
+  "properties": {
+    "rulesets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "target", "enforcement", "rules"],
+        "properties": {
+          "name": {"type": "string"},
+          "target": {"type": "string", "enum": ["branch", "tag"]},
+          "enforcement": {"type": "string", "enum": ["active", "disabled", "evaluate"]},
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {"type": "string"},
+                "parameters": {"type": "object"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
