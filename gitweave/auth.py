@@ -36,12 +36,15 @@ def get_github_client() -> Github:
             f"Private key file not found: {key_path!r} (GW_APP_PRIVATE_KEY_PATH)"
         )
 
-    with open(key_path, "rb") as fh:
+    with open(key_path, "r") as fh:
         private_key = fh.read()
 
-    auth = Auth.AppInstallationAuth(
+    app_auth = Auth.AppAuth(
         app_id=int(env["GW_APP_ID"]),
         private_key=private_key,
+    )
+    auth = Auth.AppInstallationAuth(
+        app_auth=app_auth,
         installation_id=int(env["GW_APP_INSTALLATION_ID"]),
     )
     return Github(auth=auth)

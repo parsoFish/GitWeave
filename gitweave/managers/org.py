@@ -32,9 +32,17 @@ class OrgSettingsManager:
         }
 
     def apply(self, desired: dict) -> ResourceStatus:
-        """Apply org settings; return ResourceStatus."""
+        """Apply org settings via PATCH /orgs/{org}; return ResourceStatus.
+
+        Uses the requester directly because PyGithub's Organization.edit()
+        only exposes a limited subset of fields (description, blog, …) and
+        does not support default_repository_permission, web_commit_signoff_required
+        or members_can_create_repositories.
+        """
         try:
-            self._org.edit(**desired)
+            self._org._requester.requestJsonAndCheck(
+                "PATCH", self._org.url, input=desired
+            )
             return ResourceStatus(name="org_settings", status="ok")
         except Exception as exc:
             return ResourceStatus(name="org_settings", status="error", error=str(exc))

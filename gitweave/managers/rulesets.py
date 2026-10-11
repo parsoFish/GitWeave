@@ -27,15 +27,26 @@ class RulesetsManager:
         self._prefix = _get_prefix()
 
     def list_managed(self) -> list:
-        """Return rulesets whose name starts with FORGE_RESOURCE_PREFIX."""
-        _, data = self._org._requester.requestJsonAndCheck(
-            "GET",
-            f"/orgs/{self._org.login}/rulesets",
-        )
+        """Return rulesets whose name starts with FORGE_RESOURCE_PREFIX.
+
+        Returns empty list when the org plan does not support rulesets (HTTP 403).
+        """
+        try:
+            _, data = self._org._requester.requestJsonAndCheck(
+                "GET",
+                f"/orgs/{self._org.login}/rulesets",
+            )
+        except Exception as exc:
+            if "403" in str(exc):
+                return []
+            raise
         return [r for r in (data or []) if _is_managed(r.get("name", ""), self._prefix)]
 
     def apply(self, ruleset_cfg: dict) -> ResourceStatus:
-        """Create or update a ruleset; return ResourceStatus."""
+        """Create or update a ruleset; return ResourceStatus.
+
+        Returns 'skipped' when the org plan does not support rulesets (HTTP 403).
+        """
         name = ruleset_cfg["name"]
         try:
             existing = {r["name"]: r for r in self.list_managed()}
@@ -54,6 +65,9 @@ class RulesetsManager:
                 )
             return ResourceStatus(name=name, status="ok")
         except Exception as exc:
+            if "403" in str(exc):
+                return ResourceStatus(name=name, status="skipped",
+                                      error="org plan does not support rulesets")
             return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:

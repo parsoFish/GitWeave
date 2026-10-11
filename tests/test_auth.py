@@ -27,21 +27,28 @@ class TestGetGithubClientSuccess:
         env = {**_ALL_ENV, "GW_APP_PRIVATE_KEY_PATH": str(key_file)}
 
         with patch.dict(os.environ, env, clear=False):
-            with patch("gitweave.auth.Auth.AppInstallationAuth") as mock_auth_cls:
-                with patch("gitweave.auth.Github") as mock_github_cls:
-                    mock_auth_instance = MagicMock()
-                    mock_auth_cls.return_value = mock_auth_instance
-                    mock_github_instance = MagicMock()
-                    mock_github_cls.return_value = mock_github_instance
+            with patch("gitweave.auth.Auth.AppAuth") as mock_app_auth_cls:
+                with patch("gitweave.auth.Auth.AppInstallationAuth") as mock_inst_auth_cls:
+                    with patch("gitweave.auth.Github") as mock_github_cls:
+                        mock_app_auth_instance = MagicMock()
+                        mock_app_auth_cls.return_value = mock_app_auth_instance
+                        mock_inst_auth_instance = MagicMock()
+                        mock_inst_auth_cls.return_value = mock_inst_auth_instance
+                        mock_github_instance = MagicMock()
+                        mock_github_cls.return_value = mock_github_instance
 
-                    result = get_github_client()
+                        result = get_github_client()
 
-        mock_auth_cls.assert_called_once_with(
+        # PyGithub 2.x two-step: AppAuth first, then AppInstallationAuth(app_auth=...)
+        mock_app_auth_cls.assert_called_once_with(
             app_id=123,
-            private_key=_FAKE_KEY,
+            private_key=_FAKE_KEY.decode(),  # auth.py reads key as text (mode "r")
+        )
+        mock_inst_auth_cls.assert_called_once_with(
+            app_auth=mock_app_auth_instance,
             installation_id=456,
         )
-        mock_github_cls.assert_called_once_with(auth=mock_auth_instance)
+        mock_github_cls.assert_called_once_with(auth=mock_inst_auth_instance)
         assert result is mock_github_instance
 
 
