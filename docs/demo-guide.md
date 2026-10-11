@@ -2,7 +2,7 @@
 
 A step-by-step walkthrough of the GitWeave subsystems. A second developer
 following this guide from a **fresh clone** will be able to exercise bootstrap,
-overlay config validation, apply-overlays dry-run, and Terraform plan — and see
+overlay config validation, apply-overlays dry-run, and `gw apply` — and see
 passing results for each.
 
 ---
@@ -14,7 +14,6 @@ Install the following tools before starting:
 | Tool | Minimum version | Install |
 |------|-----------------|---------|
 | `git` | 2.x | <https://git-scm.com/> |
-| `terraform` | 1.5+ | <https://developer.hashicorp.com/terraform/install> |
 | `python3` | 3.11+ | <https://www.python.org/downloads/> |
 | `pip` | bundled with python3 | — |
 | `curl` | any | usually pre-installed |
@@ -22,7 +21,7 @@ Install the following tools before starting:
 Verify each tool is on your PATH:
 
 ```bash
-git --version && terraform --version && python3 --version && curl --version
+git --version && python3 --version && curl --version
 ```
 
 ---
@@ -54,14 +53,12 @@ bash scripts/bootstrap.sh
 🚀 Starting GitWeave Bootstrap...
 Checking prerequisites...
 ✅ git found
-✅ terraform found
 ✅ python3 found
 Verifying directory structure...
 ✅ modules exists
 ✅ config exists
-✅ infra exists
 ✅ .github/workflows exists
-🎉 Bootstrap check complete! You can now proceed to 'infra/' to initialize Terraform.
+🎉 Bootstrap check complete! You can now proceed to run `gw plan`.
 ```
 
 If any prerequisite is missing, the script prints a `❌` message and exits
@@ -129,43 +126,49 @@ in `config/` is structurally valid and ready to apply.
 
 ---
 
-## 5. Terraform Plan
+## 5. Apply Organisation Configuration
 
-The `infra/` directory contains the Terraform modules that provision GitHub
-organisation resources (teams, branch-protection rules, etc.).
+The `gw` CLI provisions GitHub organisation resources (teams, branch-protection
+rules, rulesets, etc.) from the `config/` directory.
+
+First preview what changes would be made without touching the organisation:
 
 ```bash
-cd infra
-terraform init
-terraform plan
+gw plan
 ```
 
 **Expected output:**
 
 ```text
-Initializing the backend...
-Initializing provider plugins...
-...
-Terraform has been successfully initialized!
+GitWeave — plan
+Reading config/org.yaml ... ok
+Reading config/teams.yaml ... ok
+Reading config/rulesets.yaml ... ok
 
-...
-
-No changes. Your infrastructure matches the configuration.
-
-Terraform has compared your real infrastructure against your configuration
-and found no differences, so no changes are needed.
+No changes. Your organisation matches the configuration.
 ```
 
-> **Note:** If you are running against a real GitHub organisation, Terraform
-> will show the planned additions/changes instead of "No changes". That is
-> expected — the important signal is that `terraform plan` exits 0 and
-> describes the intended changes without errors.
-
-Return to the repo root when done:
+Once you are satisfied with the plan, apply the changes:
 
 ```bash
-cd ..
+gw apply
 ```
+
+**Expected output:**
+
+```text
+GitWeave — apply
+Reading config/org.yaml ... ok
+Reading config/teams.yaml ... ok
+Reading config/rulesets.yaml ... ok
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+```
+
+> **Note:** If you are running against a real GitHub organisation, `gw apply`
+> will show the actual additions/changes instead. That is expected — the
+> important signal is that `gw apply` exits 0 and describes the intended
+> changes without errors.
 
 ---
 
@@ -176,7 +179,7 @@ cd ..
 | Bootstrap | `bash scripts/bootstrap.sh` | `Bootstrap check complete` |
 | Overlay validation | `pytest tests/test_overlay_schema.py -v` | All tests `PASSED` |
 | Apply overlays dry-run | `pytest tests/ -k "overlay"` | All tests `PASSED` |
-| Terraform plan | `terraform init && terraform plan` (in `infra/`) | Exit 0, no errors |
+| Apply configuration | `gw apply` | Exit 0, no errors |
 
 All four steps passing confirms that GitWeave's subsystems are correctly
 wired together on a fresh clone.
