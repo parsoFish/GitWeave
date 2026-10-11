@@ -17,11 +17,6 @@ The following aliases are configured in `~/.bashrc` and available in all WSL ter
 - `gitsync` - Pull and push in one command (`git pull && git push`)
 - `gitpr` - Push and open PR creation in browser (`git push && gh pr create --web`)
 
-### Terraform
-- `tf` - Terraform shorthand
-- `tfcheck` - Format, validate, and plan (`terraform fmt -recursive && terraform validate && terraform plan`)
-- `tfapply` - Apply with auto-approve (`terraform apply -auto-approve`)
-
 ### Python
 - `py` - Python3 shorthand
 - `pyclean` - Remove Python cache directories (`__pycache__`, `.pytest_cache`)
