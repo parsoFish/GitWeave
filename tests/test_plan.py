@@ -53,9 +53,12 @@ def _matching_snapshot(cfg: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def test_plan_empty_fixture_all_create(tmp_path):
+def test_plan_empty_fixture_all_create(tmp_path, monkeypatch):
     """AC1: fixture with empty org → every declared resource is a 'create' action."""
     assert ORG_EMPTY_FIXTURE.exists(), "tests/fixtures/org-empty.json must exist"
+
+    # Ensure prefix filtering doesn't hide unqualified names used in test fixtures.
+    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
 
     # Patch load_config to return a known config (avoids depending on live config files)
     cfg = _cfg_with_teams_and_rulesets()
@@ -151,8 +154,11 @@ def test_plan_raises_env_error_without_gw_org(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_plan_extra_snapshot_resource_is_delete(tmp_path):
+def test_plan_extra_snapshot_resource_is_delete(tmp_path, monkeypatch):
     """Resource present in snapshot but absent from declared config → 'delete'."""
+    # Ensure prefix filtering doesn't hide unqualified names used in test fixtures.
+    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
+
     cfg = _cfg_with_teams_and_rulesets()
     snapshot = _matching_snapshot(cfg)
     # Add an extra team not declared in config
