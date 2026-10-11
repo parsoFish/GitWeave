@@ -83,6 +83,16 @@ def plan(fixture_path: str | None = None) -> PlanResult:
     return _diff(cfg, snapshot, prefix)
 
 
+def _resource_name(r: dict) -> str:
+    """Extract the canonical name from a resource dict.
+
+    Teams/rulesets have a top-level ``name`` key; repo overlays use
+    ``metadata.name``.  Fallback to empty string so callers can filter
+    safely with ``.startswith(prefix)``.
+    """
+    return r.get("name") or r.get("metadata", {}).get("name", "")
+
+
 def _diff(cfg: dict, snapshot: dict, prefix: str) -> PlanResult:
     """Compare declared config against snapshot; return PlanResult."""
     result = PlanResult()
@@ -99,15 +109,17 @@ def _diff(cfg: dict, snapshot: dict, prefix: str) -> PlanResult:
 
     for rtype, label in type_map.items():
         declared_names = {
-            r["name"]
+            _resource_name(r)
             for r in cfg[rtype]
-            if r.get("name", "").startswith(prefix)
+            if _resource_name(r).startswith(prefix)
         }
+        declared_names.discard("")  # skip resources with no resolvable name
         snap_names = {
-            r["name"]
+            _resource_name(r)
             for r in snapshot.get(rtype, [])
-            if r.get("name", "").startswith(prefix)
+            if _resource_name(r).startswith(prefix)
         }
+        snap_names.discard("")
         for n in sorted(declared_names - snap_names):
             result.items.append(PlanItem(label, n, "create"))
         for n in sorted(snap_names - declared_names):
