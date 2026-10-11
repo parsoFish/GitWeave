@@ -109,7 +109,7 @@ class TestReset:
         assert not result.nothing_changed
 
     def test_reset_calls_org_reset(self):
-        """reset() restores org settings to safe defaults."""
+        """reset() restores org settings via PATCH /orgs/{org}."""
         org = _make_org(
             org_settings={
                 "description": "old",
@@ -120,10 +120,15 @@ class TestReset:
         )
         reset(org)
 
-        org.edit.assert_called_once()
-        kwargs = org.edit.call_args[1]
-        assert kwargs["default_repository_permission"] == "read"
-        assert kwargs["web_commit_signoff_required"] is False
+        patch_calls = [
+            c for c in org._requester.requestJsonAndCheck.call_args_list
+            if c[0][0] == "PATCH"
+        ]
+        assert len(patch_calls) == 1
+        _, kwargs = patch_calls[0]
+        call_input = kwargs["input"]
+        assert call_input["default_repository_permission"] == "read"
+        assert call_input["web_commit_signoff_required"] is False
 
     def test_reset_all_statuses_ok(self):
         """AC4: all statuses are ok after clean reset."""
@@ -204,7 +209,15 @@ class TestApply:
     def test_apply_continues_after_error(self, mock_config):
         """AC2: apply() is best-effort — continues past one resource error."""
         org = _make_org()
-        org.edit.side_effect = Exception("API error")  # org_settings fails
+        # Make PATCH /orgs/{org} fail (org_settings) but leave GET rulesets intact
+        _orig = org._requester.requestJsonAndCheck.side_effect
+
+        def _fail_patch(method, path, **kwargs):
+            if method == "PATCH":
+                raise Exception("API error")
+            return _orig(method, path, **kwargs)
+
+        org._requester.requestJsonAndCheck.side_effect = _fail_patch
 
         with patch("gitweave.apply.load_config", return_value=mock_config):
             result = apply(org, json_mode=False)

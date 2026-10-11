@@ -23,8 +23,8 @@ def manager(mock_org):
 
 
 class TestApply:
-    def test_calls_org_edit_with_declared_settings(self, manager, mock_org):
-        """AC1: apply() calls org.edit() with the declared settings dict."""
+    def test_calls_requester_patch_with_declared_settings(self, manager, mock_org):
+        """AC1: apply() sends PATCH /orgs/{org} with the declared settings dict."""
         settings = {
             "description": "New description",
             "default_repository_permission": "read",
@@ -32,7 +32,9 @@ class TestApply:
             "members_can_create_repositories": True,
         }
         manager.apply(settings)
-        mock_org.edit.assert_called_once_with(**settings)
+        mock_org._requester.requestJsonAndCheck.assert_called_once_with(
+            "PATCH", mock_org.url, input=settings
+        )
 
     def test_returns_status_ok_on_success(self, manager):
         """AC1: apply() returns ResourceStatus with status=ok."""
@@ -44,8 +46,10 @@ class TestApply:
         assert result.error is None
 
     def test_returns_status_error_on_exception(self, manager, mock_org):
-        """AC3: apply() returns status=error when org.edit() raises."""
-        mock_org.edit.side_effect = GithubException(422, {"message": "Validation failed"})
+        """AC3: apply() returns status=error when PATCH raises."""
+        mock_org._requester.requestJsonAndCheck.side_effect = GithubException(
+            422, {"message": "Validation failed"}
+        )
         settings = {"description": "bad"}
         result = manager.apply(settings)
         assert result.status == "error"
@@ -55,25 +59,30 @@ class TestApply:
 
     def test_does_not_propagate_exception(self, manager, mock_org):
         """AC3: exception is caught, not propagated."""
-        mock_org.edit.side_effect = GithubException(500, {"message": "Server error"})
+        mock_org._requester.requestJsonAndCheck.side_effect = GithubException(
+            500, {"message": "Server error"}
+        )
         result = manager.apply({})
         assert result.status == "error"
 
 
 class TestReset:
-    def test_calls_edit_with_org_defaults(self, manager, mock_org):
-        """AC2: reset() calls org.edit() with ORG_DEFAULTS values."""
+    def test_calls_patch_with_org_defaults(self, manager, mock_org):
+        """AC2: reset() sends PATCH with ORG_DEFAULTS values."""
         manager.reset()
-        mock_org.edit.assert_called_once_with(**ORG_DEFAULTS)
+        mock_org._requester.requestJsonAndCheck.assert_called_once_with(
+            "PATCH", mock_org.url, input=ORG_DEFAULTS
+        )
 
     def test_reset_defaults_are_correct(self, manager, mock_org):
         """AC2: ORG_DEFAULTS match expected GitHub safe defaults."""
         manager.reset()
-        call_kwargs = mock_org.edit.call_args.kwargs
-        assert call_kwargs["description"] == ""
-        assert call_kwargs["default_repository_permission"] == "read"
-        assert call_kwargs["web_commit_signoff_required"] is False
-        assert call_kwargs["members_can_create_repositories"] is True
+        _, kwargs = mock_org._requester.requestJsonAndCheck.call_args
+        call_input = kwargs["input"]
+        assert call_input["description"] == ""
+        assert call_input["default_repository_permission"] == "read"
+        assert call_input["web_commit_signoff_required"] is False
+        assert call_input["members_can_create_repositories"] is True
 
     def test_reset_returns_status_ok(self, manager):
         """AC2: reset() returns ok status on success."""
