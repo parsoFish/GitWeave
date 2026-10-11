@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["teams"],
+  "properties": {
+    "teams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "privacy": {"type": "string", "enum": ["secret", "closed"]},
+          "parent_team": {"type": "string"},
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["username", "role"],
+              "properties": {
+                "username": {"type": "string"},
+                "role": {"type": "string", "enum": ["maintainer", "member"]}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
