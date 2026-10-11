@@ -4,6 +4,7 @@ Validates config/teams.yaml against its JSON schema, and tests that
 gw plan --fixture runs cleanly credential-free.
 """
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -23,12 +24,14 @@ def test_teams_yaml_validates_against_schema():
 
 def test_gw_plan_fixture_exits_zero():
     """gw plan --fixture tests/fixtures/org-empty.json exits 0 with no network calls."""
+    env = {**os.environ, "FORGE_RESOURCE_PREFIX": ""}
     result = subprocess.run(
         [sys.executable, "-m", "gitweave.cli",
          "plan", "--fixture", str(ROOT / "tests" / "fixtures" / "org-empty.json")],
         capture_output=True,
         text=True,
         cwd=str(ROOT),
+        env=env,
     )
     assert result.returncode == 0, (
         f"gw plan --fixture exited {result.returncode}:\n"
