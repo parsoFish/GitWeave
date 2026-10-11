@@ -1,0 +1,59 @@
+{
+  "narrative": "Teams, repos, and org-level rulesets are now declared as YAML and applied through a Python CLI — no Terraform state, no infra/ directory. An operator runs `gw plan` to see a structured diff, `gw apply --json` to converge the org, and `gw reset` to restore defaults. The entire TF toolchain is gone from CI and docs; the org is the source of truth, driven by code.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "Terraform files absent; gw package present in tracked files",
+      "acRef": "WI-9a",
+      "command": "git ls-files"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "gw plan shows create actions for all declared resources against empty-org fixture",
+      "acRef": "WI-6",
+      "command": "gw plan"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "gw apply --json returns statuses + state dict after reset-before-apply",
+      "acRef": "WI-7",
+      "command": "gw apply --json"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Org settings read back as JSON after apply",
+      "acRef": "WI-8",
+      "command": "gw org show --json"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Managed teams read back after apply",
+      "acRef": "WI-5b",
+      "command": "gw org teams --json"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Managed rulesets read back after apply",
+      "acRef": "WI-5b",
+      "command": "gw org rulesets --json"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Structure + schema tests pass; no TF test files remain",
+      "acRef": "WI-9a",
+      "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "No terraform tokens remain in docs or agent context",
+      "acRef": "WI-14",
+      "command": "python3 -m pytest tests/test_docs_no_terraform_tokens.py"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Reset-before-apply proof: stale prefixed team absent from state after apply --json",
+      "acRef": "WI-13",
+      "command": "python3 -m pytest tests/acceptance/test_gw_reset_before_apply.py"
+    }
+  ]
+}
