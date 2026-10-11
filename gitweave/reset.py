@@ -42,11 +42,11 @@ def reset(gh_org) -> ResetResult:
         changed = True
         result.statuses.append(rulesets_mgr.delete(rs["name"]))
 
-    # Restore org settings to GitHub safe defaults
+    # Restore org settings to GitHub safe defaults (only when they differ)
     org_mgr = OrgSettingsManager(gh_org)
     if org_mgr.current() != ORG_DEFAULTS:
         changed = True
-    result.statuses.append(org_mgr.reset())
+        result.statuses.append(org_mgr.reset())
 
     result.nothing_changed = not changed
     return result
