@@ -199,103 +199,16 @@ class TestPythonSetup(unittest.TestCase):
                 return
         self.fail("No actions/setup-python step found to check python-version.")
 
-    def test_pip_install_copier(self):
-        """A pip install step must include 'copier'."""
-        runs = _step_run_blocks(_load_yaml())
-        combined = "\n".join(runs)
-        self.assertIn(
-            "copier",
-            combined,
-            "No 'pip install' step mentions 'copier'.",
-        )
-
-    def test_pip_install_pyyaml(self):
-        """A pip install step must include 'pyyaml' (case-insensitive)."""
-        runs = _step_run_blocks(_load_yaml())
-        combined = "\n".join(runs).lower()
-        self.assertIn(
-            "pyyaml",
-            combined,
-            "No 'pip install' step mentions 'pyyaml'.",
-        )
-
-    def test_pip_install_jsonschema(self):
-        """A pip install step must include 'jsonschema'."""
-        runs = _step_run_blocks(_load_yaml())
-        combined = "\n".join(runs).lower()
-        self.assertIn(
-            "jsonschema",
-            combined,
-            "No 'pip install' step mentions 'jsonschema'.",
-        )
+    # copier / pyyaml / jsonschema were dependencies of the legacy
+    # apply-overlays.py step which has been replaced by gw commands (WI-2).
+    # Those pip-install checks are now covered by test_apply_workflow_rewired.py.
 
 
 # ---------------------------------------------------------------------------
-# Script invocation
+# Script invocation and GITHUB_TOKEN tests have been removed (WI-2):
+# the workflow was rewired from apply-overlays.py to gw commands.
+# New checks live in tests/test_apply_workflow_rewired.py.
 # ---------------------------------------------------------------------------
-
-
-class TestScriptInvocation(unittest.TestCase):
-    """A step must invoke apply-overlays.py with the correct arguments."""
-
-    def test_apply_overlays_script_is_called(self):
-        """A run step must reference 'apply-overlays.py'."""
-        raw = _read_raw()
-        self.assertIn(
-            "apply-overlays.py",
-            raw,
-            "No reference to 'apply-overlays.py' found in the workflow.",
-        )
-
-    def test_script_invoked_with_python3(self):
-        """The script must be invoked via 'python3 scripts/apply-overlays.py'."""
-        runs = _step_run_blocks(_load_yaml())
-        combined = "\n".join(runs)
-        self.assertIn(
-            "python3 scripts/apply-overlays.py",
-            combined,
-            "Script must be called as 'python3 scripts/apply-overlays.py'.",
-        )
-
-    def test_script_receives_config_repos_argument(self):
-        """The script call must include 'config/repos/' as the directory argument."""
-        runs = _step_run_blocks(_load_yaml())
-        combined = "\n".join(runs)
-        self.assertIn(
-            "config/repos/",
-            combined,
-            "The apply-overlays.py invocation must pass 'config/repos/' as the argument.",
-        )
-
-
-# ---------------------------------------------------------------------------
-# GITHUB_TOKEN
-# ---------------------------------------------------------------------------
-
-
-class TestGitHubToken(unittest.TestCase):
-    """GITHUB_TOKEN must be available to the apply-overlays step."""
-
-    def test_github_token_referenced_in_workflow(self):
-        """
-        The workflow must reference GITHUB_TOKEN (e.g. as an env var on the step
-        or the job) so the script can authenticate with the GitHub API.
-        """
-        raw = _read_raw()
-        self.assertIn(
-            "GITHUB_TOKEN",
-            raw,
-            "GITHUB_TOKEN must be referenced in the workflow for the apply step.",
-        )
-
-    def test_github_token_uses_secrets_github_token(self):
-        """GITHUB_TOKEN should be set from secrets.GITHUB_TOKEN or github.token."""
-        raw = _read_raw()
-        uses_secrets = "secrets.GITHUB_TOKEN" in raw or "github.token" in raw
-        self.assertTrue(
-            uses_secrets,
-            "GITHUB_TOKEN must be sourced from secrets.GITHUB_TOKEN or github.token.",
-        )
 
 
 # ---------------------------------------------------------------------------
