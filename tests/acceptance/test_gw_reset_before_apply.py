@@ -1,13 +1,13 @@
 """tests/acceptance/test_gw_reset_before_apply.py — live acceptance: gw reset idempotency.
 
 REQUIRES: GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, GW_ORG,
-          FORGE_RESOURCE_PREFIX all set in the environment.
+          GW_RESOURCE_PREFIX all set in the environment.
 
 Skips when any of those variables is missing.
 
 Checks:
   - gw reset twice → second run reports nothing changed.
-  - After gw reset, no FORGE_RESOURCE_PREFIX resource remains.
+  - After gw reset, no GW_RESOURCE_PREFIX resource remains.
 """
 
 import json
@@ -20,12 +20,12 @@ _REQUIRED_VARS = (
     "GW_APP_PRIVATE_KEY_PATH",
     "GW_APP_INSTALLATION_ID",
     "GW_ORG",
-    "FORGE_RESOURCE_PREFIX",
+    "GW_RESOURCE_PREFIX",
 )
 
 _SKIP_REASON = (
     "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and FORGE_RESOURCE_PREFIX to be set."
+    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
 )
 
 
@@ -60,7 +60,7 @@ class TestResetIdempotency(unittest.TestCase):
         )
 
     def test_no_prefixed_resources_after_reset(self):
-        prefix = os.environ["FORGE_RESOURCE_PREFIX"]
+        prefix = os.environ["GW_RESOURCE_PREFIX"]
 
         # Ensure clean state
         r = _run_gw("reset")

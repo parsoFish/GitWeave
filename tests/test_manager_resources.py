@@ -1,4 +1,8 @@
-"""Tests for TeamsManager, ReposManager, RulesetsManager — WI-5b."""
+"""Tests for TeamsManager, ReposManager, RulesetsManager — WI-5b.
+
+Updated for GW_RESOURCE_PREFIX as primary marker; FORGE_RESOURCE_PREFIX is
+optional narrowing only.
+"""
 import os
 from unittest.mock import MagicMock, call
 
@@ -28,50 +32,74 @@ def _make_repo(name: str) -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# _get_prefix
+# _get_prefix — GW_RESOURCE_PREFIX is now primary
 # ---------------------------------------------------------------------------
 
 
-def test_get_prefix_raises_when_unset(monkeypatch):
+def test_get_prefix_raises_when_gw_unset(monkeypatch):
+    monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
     monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
+    with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
+        _get_prefix()
+
+
+def test_get_prefix_raises_when_gw_empty(monkeypatch):
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
+    with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
+        _get_prefix()
+
+
+def test_get_prefix_returns_gw_prefix_when_forge_unset(monkeypatch):
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
+    assert _get_prefix() == "gw-test-"
+
+
+def test_get_prefix_returns_forge_prefix_when_valid(monkeypatch):
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "gw-test-forge-")
+    assert _get_prefix() == "gw-test-forge-"
+
+
+def test_get_prefix_raises_when_forge_does_not_start_with_gw(monkeypatch):
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "unrelated-")
     with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
         _get_prefix()
 
 
-def test_get_prefix_raises_when_empty(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
-    with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
-        _get_prefix()
-
-
 # ---------------------------------------------------------------------------
-# AC3: instantiation raises when FORGE_RESOURCE_PREFIX unset / empty
+# Instantiation raises when GW_RESOURCE_PREFIX unset / empty
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("Manager", [TeamsManager, ReposManager, RulesetsManager])
-def test_instantiation_raises_when_prefix_unset(monkeypatch, Manager):
+def test_instantiation_raises_when_gw_prefix_unset(monkeypatch, Manager):
+    monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
     monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
-    with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
+    with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
         Manager(org)
 
 
 @pytest.mark.parametrize("Manager", [TeamsManager, ReposManager, RulesetsManager])
-def test_instantiation_raises_when_prefix_empty(monkeypatch, Manager):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
+def test_instantiation_raises_when_gw_prefix_empty(monkeypatch, Manager):
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
-    with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
+    with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
         Manager(org)
 
 
 # ---------------------------------------------------------------------------
-# AC1: TeamsManager.list_managed() filters by prefix
+# AC1: TeamsManager.list_managed() filters by GW_RESOURCE_PREFIX
 # ---------------------------------------------------------------------------
 
 
 def test_list_managed_returns_prefix_teams(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_teams.return_value = [
         _make_team("forge-eng"),
@@ -86,7 +114,8 @@ def test_list_managed_returns_prefix_teams(monkeypatch):
 
 
 def test_list_managed_empty_when_no_prefix_match(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_teams.return_value = [_make_team("other-team")]
     mgr = TeamsManager(org)
@@ -99,7 +128,8 @@ def test_list_managed_empty_when_no_prefix_match(monkeypatch):
 
 
 def test_apply_creates_team_when_absent(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_teams.return_value = []  # no existing teams
     mgr = TeamsManager(org)
@@ -114,7 +144,8 @@ def test_apply_creates_team_when_absent(monkeypatch):
 
 
 def test_apply_updates_team_when_present(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     existing_team = _make_team("forge-backend")
     org = MagicMock()
     org.get_teams.return_value = [existing_team]
@@ -127,7 +158,8 @@ def test_apply_updates_team_when_present(monkeypatch):
 
 
 def test_apply_returns_error_on_exception(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_teams.side_effect = RuntimeError("API down")
     mgr = TeamsManager(org)
@@ -142,7 +174,8 @@ def test_apply_returns_error_on_exception(monkeypatch):
 
 
 def test_delete_team_treats_404_as_success(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_teams.side_effect = Exception("404 Not Found")
     mgr = TeamsManager(org)
@@ -156,7 +189,8 @@ def test_delete_team_treats_404_as_success(monkeypatch):
 
 
 def test_repos_apply_creates_repo_when_absent(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_repos.return_value = []
     mgr = ReposManager(org)
@@ -174,7 +208,8 @@ def test_repos_apply_creates_repo_when_absent(monkeypatch):
 
 
 def test_repos_apply_updates_repo_when_present(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     existing_repo = _make_repo("forge-api")
     org = MagicMock()
     org.get_repos.return_value = [existing_repo]
@@ -187,7 +222,8 @@ def test_repos_apply_updates_repo_when_present(monkeypatch):
 
 
 def test_repos_apply_returns_error_on_exception(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_repos.side_effect = RuntimeError("quota exceeded")
     mgr = ReposManager(org)
@@ -197,7 +233,8 @@ def test_repos_apply_returns_error_on_exception(monkeypatch):
 
 
 def test_repos_delete_treats_404_as_success(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.get_repos.side_effect = Exception("404 Not Found")
     mgr = ReposManager(org)
@@ -222,7 +259,8 @@ def _make_ruleset_org(existing_rulesets=None):
 
 
 def test_rulesets_apply_creates_when_absent(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = _make_ruleset_org(existing_rulesets=[])
     mgr = RulesetsManager(org)
     cfg = {"name": "forge-branch-protection", "target": "branch"}
@@ -237,7 +275,8 @@ def test_rulesets_apply_creates_when_absent(monkeypatch):
 
 
 def test_rulesets_apply_updates_when_present(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     existing = [{"name": "forge-branch-protection", "id": 42}]
     org = _make_ruleset_org(existing_rulesets=existing)
     mgr = RulesetsManager(org)
@@ -253,7 +292,8 @@ def test_rulesets_apply_updates_when_present(monkeypatch):
 
 
 def test_rulesets_apply_returns_error_on_exception(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.login = "my-org"
     org._requester.requestJsonAndCheck.side_effect = RuntimeError("rate limited")
@@ -264,7 +304,8 @@ def test_rulesets_apply_returns_error_on_exception(monkeypatch):
 
 
 def test_rulesets_list_managed_filters_by_prefix(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "forge-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     all_rulesets = [
         {"name": "forge-branch-protection", "id": 1},
         {"name": "other-rule", "id": 2},
