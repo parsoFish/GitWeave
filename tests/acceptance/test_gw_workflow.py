@@ -1,7 +1,7 @@
 """tests/acceptance/test_gw_workflow.py — live acceptance: gw apply idempotency.
 
 REQUIRES: GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, GW_ORG,
-          FORGE_RESOURCE_PREFIX all set in the environment.
+          GW_RESOURCE_PREFIX all set in the environment.
 
 Skips when any of those variables is missing.
 """
@@ -17,12 +17,12 @@ _REQUIRED_VARS = (
     "GW_APP_PRIVATE_KEY_PATH",
     "GW_APP_INSTALLATION_ID",
     "GW_ORG",
-    "FORGE_RESOURCE_PREFIX",
+    "GW_RESOURCE_PREFIX",
 )
 
 _SKIP_REASON = (
     "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and FORGE_RESOURCE_PREFIX to be set."
+    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
 )
 
 _VOLATILE_KEYS = frozenset({
@@ -102,7 +102,7 @@ class TestExtraTeamAbsentAfterApply(unittest.TestCase):
 
         self._gh = get_github_client()
         self._gh_org = self._gh.get_organization(os.environ["GW_ORG"])
-        self._prefix = os.environ["FORGE_RESOURCE_PREFIX"]
+        self._prefix = os.environ["GW_RESOURCE_PREFIX"]
         self._extra_team = f"{self._prefix}extra-stale-team"
 
     def test_stale_prefixed_team_removed_by_apply(self):
