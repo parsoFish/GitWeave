@@ -58,6 +58,7 @@ def test_plan_empty_fixture_all_create(tmp_path, monkeypatch):
     assert ORG_EMPTY_FIXTURE.exists(), "tests/fixtures/org-empty.json must exist"
 
     # Ensure prefix filtering doesn't hide unqualified names used in test fixtures.
+    monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
     monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
 
     # Patch load_config to return a known config (avoids depending on live config files)
@@ -157,6 +158,7 @@ def test_plan_raises_env_error_without_gw_org(monkeypatch):
 def test_plan_extra_snapshot_resource_is_delete(tmp_path, monkeypatch):
     """Resource present in snapshot but absent from declared config → 'delete'."""
     # Ensure prefix filtering doesn't hide unqualified names used in test fixtures.
+    monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
     monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "")
 
     cfg = _cfg_with_teams_and_rulesets()

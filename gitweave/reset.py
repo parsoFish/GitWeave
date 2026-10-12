@@ -20,9 +20,15 @@ def reset(gh_org) -> ResetResult:
     404 on any individual resource → success (idempotent).
     Sets nothing_changed=True when org was already clean and at defaults.
     """
-    prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
+    gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
+    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
+    # FORGE_RESOURCE_PREFIX narrows scope when set; GW_RESOURCE_PREFIX is the primary marker.
+    if forge_prefix:
+        prefix = forge_prefix  # narrower scope — forge_prefix is ⊆ gw_prefix space
+    else:
+        prefix = gw_prefix
     if not prefix:
-        raise EnvironmentError("FORGE_RESOURCE_PREFIX must be set and non-empty")
+        raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty for reset")
 
     result = ResetResult()
     changed = False

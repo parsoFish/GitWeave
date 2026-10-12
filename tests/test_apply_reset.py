@@ -171,10 +171,11 @@ class TestReset:
         assert team_status.status == "ok"
 
     def test_reset_requires_prefix_env_var(self, monkeypatch):
-        """reset() raises EnvironmentError when FORGE_RESOURCE_PREFIX not set."""
+        """reset() raises EnvironmentError when neither GW_RESOURCE_PREFIX nor FORGE_RESOURCE_PREFIX is set."""
+        monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
         monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
         org = _make_org()
-        with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
+        with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
             reset(org)
 
 
