@@ -16,7 +16,7 @@ from gitweave.reset import reset, ResetResult
 
 @pytest.fixture(autouse=True)
 def set_prefix(monkeypatch):
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "gw-test-")
+    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
 
 
 def _make_team(name: str):
@@ -171,12 +171,86 @@ class TestReset:
         assert team_status.status == "ok"
 
     def test_reset_requires_prefix_env_var(self, monkeypatch):
-        """reset() raises EnvironmentError when neither GW_RESOURCE_PREFIX nor FORGE_RESOURCE_PREFIX is set."""
+        """reset() raises EnvironmentError when GW_RESOURCE_PREFIX is not set."""
         monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
         monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
         org = _make_org()
         with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
             reset(org)
+
+    def test_reset_refuses_mismatched_forge_prefix(self, monkeypatch):
+        """AC2: FORGE_RESOURCE_PREFIX not starting with GW_RESOURCE_PREFIX → refused by name."""
+        monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+        monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "totally-different-")
+        org = _make_org()
+        with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
+            reset(org)
+
+    def test_reset_verified_by_api_readback(self, monkeypatch):
+        """AC3: After reset(), a read-back GET shows no GitWeave-marked resource remains.
+
+        Uses a stateful mock: delete() removes resources from the org's in-memory
+        list so list_managed() after reset returns empty — not exit code alone.
+        """
+        from gitweave.managers.teams import TeamsManager
+        from gitweave.managers.repos import ReposManager
+        from gitweave.managers.rulesets import RulesetsManager
+
+        monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+        monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
+
+        # Build stateful org mock.
+        live_teams = [_make_team("gw-test-devs")]
+        live_repos = [_make_repo("gw-test-repo")]
+        live_rulesets = [{"name": "gw-test-rules", "id": 1}]
+
+        org = MagicMock()
+        org.login = "test-org"
+        org.description = "test"
+        org.default_repository_permission = "read"
+        org.web_commit_signoff_required = False
+        org.members_can_create_repositories = True
+
+        org.get_teams.side_effect = lambda: list(live_teams)
+        org.get_repos.side_effect = lambda: list(live_repos)
+
+        def _requester(method, path, **_kwargs):
+            if method == "GET" and "rulesets" in path:
+                return ({}, list(live_rulesets))
+            if method == "DELETE" and "rulesets" in path:
+                live_rulesets.clear()
+                return ({}, {})
+            return ({}, {})
+
+        org._requester.requestJsonAndCheck.side_effect = _requester
+
+        # Patch team and repo delete to update live lists.
+        def _make_deletable_team(name):
+            t = MagicMock()
+            t.name = name
+            def _del():
+                live_teams[:] = [x for x in live_teams if x.name != name]
+            t.delete.side_effect = _del
+            return t
+
+        def _make_deletable_repo(name):
+            r = MagicMock()
+            r.name = name
+            def _del():
+                live_repos[:] = [x for x in live_repos if x.name != name]
+            r.delete.side_effect = _del
+            return r
+
+        live_teams[:] = [_make_deletable_team("gw-test-devs")]
+        live_repos[:] = [_make_deletable_repo("gw-test-repo")]
+
+        result = reset(org)
+        assert all(s.status == "ok" for s in result.statuses), result.statuses
+
+        # API read-back: no GitWeave-prefixed resource should remain.
+        assert TeamsManager(org).list_managed() == [], "teams still present after reset"
+        assert ReposManager(org).list_managed() == [], "repos still present after reset"
+        assert RulesetsManager(org).list_managed() == [], "rulesets still present after reset"
 
 
 # ---------------------------------------------------------------------------

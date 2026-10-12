@@ -284,6 +284,40 @@ class TestTriggerConfiguration(unittest.TestCase):
             f"Push trigger must include a 'config/**' path filter, got: {paths}",
         )
 
+    def test_pull_request_trigger_has_gitweave_path_filter(self):
+        """AC5: The pull_request trigger must filter on 'gitweave/**' paths."""
+        doc = _load_yaml()
+        triggers = _get_triggers(doc)
+        pr = triggers.get("pull_request") or {}
+        paths = pr.get("paths") or []
+        self.assertTrue(
+            any("gitweave/" in p for p in paths),
+            f"pull_request trigger must include a 'gitweave/**' path filter, got: {paths}",
+        )
+
+    def test_pull_request_trigger_has_workflow_path_filter(self):
+        """AC5: The pull_request trigger must filter on the workflow file itself."""
+        doc = _load_yaml()
+        triggers = _get_triggers(doc)
+        pr = triggers.get("pull_request") or {}
+        paths = pr.get("paths") or []
+        self.assertTrue(
+            any("gitweave-apply" in p for p in paths),
+            f"pull_request trigger must include the workflow file path, got: {paths}",
+        )
+
+    def test_apply_job_runs_on_pull_request(self):
+        """AC5: The apply job must run on pull_request events (not push-only)."""
+        doc = _load_yaml()
+        jobs = doc.get("jobs", {})
+        apply_job = jobs.get("apply") or {}
+        condition = str(apply_job.get("if", ""))
+        self.assertIn(
+            "pull_request",
+            condition,
+            f"apply job 'if' condition must include pull_request, got: {condition!r}",
+        )
+
     def test_workflow_dispatch_trigger_present(self):
         """The workflow must support manual dispatch via workflow_dispatch."""
         doc = _load_yaml()

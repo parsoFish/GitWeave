@@ -69,9 +69,14 @@ def plan(fixture_path: str | None = None) -> PlanResult:
     cfg = load_config()
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope when set; must start with gw_prefix to be valid.
+    # FORGE_RESOURCE_PREFIX narrows scope when set; must start with gw_prefix.
     if forge_prefix:
-        prefix = forge_prefix  # narrower scope — forge_prefix is ⊆ gw_prefix space
+        if not forge_prefix.startswith(gw_prefix):
+            raise EnvironmentError(
+                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
+                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
+            )
+        prefix = forge_prefix  # narrower scope — forge_prefix ⊆ gw_prefix space
     else:
         prefix = gw_prefix
 
