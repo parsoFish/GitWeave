@@ -1,0 +1,23 @@
+{
+  "narrative": "GitWeave now owns its resource namespace via GW_RESOURCE_PREFIX — a first-party ownership marker distinct from forge's test-isolation variable. Apply and reset scope to exactly what GitWeave owns; forge acceptance runs narrow further via FORGE_RESOURCE_PREFIX without touching production code. The apply workflow CI is green: the broken overlay stub is gone, GW_RESOURCE_PREFIX flows into the live apply job, and the full offline suite passes.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "gw plan scopes by GW_RESOURCE_PREFIX, not FORGE_RESOURCE_PREFIX",
+      "acRef": "WI-1",
+      "command": "gw plan"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Full offline test suite exits 0 after prefix and workflow fixes",
+      "acRef": "WI-4",
+      "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "org rulesets read back under GW_RESOURCE_PREFIX scope",
+      "acRef": "WI-2",
+      "command": "gw org rulesets --json"
+    }
+  ]
+}

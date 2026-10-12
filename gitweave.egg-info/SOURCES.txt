@@ -6,6 +6,7 @@ gitweave/apply.py
 gitweave/auth.py
 gitweave/cli.py
 gitweave/config.py
+gitweave/plan.py
 gitweave/reset.py
 gitweave.egg-info/PKG-INFO
 gitweave.egg-info/SOURCES.txt
@@ -19,12 +20,14 @@ gitweave/managers/repos.py
 gitweave/managers/rulesets.py
 gitweave/managers/teams.py
 tests/test_apply_reset.py
+tests/test_apply_workflow_rewired.py
 tests/test_apply_workflow_structure.py
 tests/test_auth.py
 tests/test_brownfield_import_validate.py
 tests/test_bump_module_version.py
 tests/test_calver_ci_workflow.py
 tests/test_ci_workflow.py
+tests/test_cli.py
 tests/test_config.py
 tests/test_copier_schema.py
 tests/test_copier_schema_ci.py
@@ -35,6 +38,7 @@ tests/test_dry_run_smoke.py
 tests/test_example_template_removed.py
 tests/test_gw_apply_workflow.py
 tests/test_gw_schemas.py
+tests/test_gw_teams.py
 tests/test_incremental_overlay_validation.py
 tests/test_legal_files.py
 tests/test_manager_org.py
@@ -43,8 +47,10 @@ tests/test_module_update_pr_workflow.py
 tests/test_overlay_ci_validation_workflow.py
 tests/test_overlay_example_config.py
 tests/test_overlay_schema.py
+tests/test_ownership_marker.py
 tests/test_package_structure.py
 tests/test_parallel_validate_overlay_configs.py
+tests/test_plan.py
 tests/test_pruned_artefacts.py
 tests/test_repo_hygiene.py
 tests/test_scale_fixtures.py
