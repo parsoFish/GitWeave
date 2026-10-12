@@ -6,10 +6,14 @@ name: GitWeave Apply
     branches: ["main"]
     paths:
       - "config/**"
+      - "gitweave/**"
+      - ".github/workflows/gitweave-apply.yaml"
   pull_request:
     branches: ["main"]
     paths:
       - "config/**"
+      - "gitweave/**"
+      - ".github/workflows/gitweave-apply.yaml"
   workflow_dispatch:
 
 permissions:
@@ -30,15 +34,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          pip install copier pyyaml jsonschema
+      - name: Install gw
+        run: pip install -e .
 
-      - name: Apply Overlays
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 scripts/apply-overlays.py config/repos/
+      - name: Plan (fixture mode — no credentials)
+        run: gw plan --fixture tests/fixtures/org-empty.json
 
   plan:
     name: gw plan (credential-free)
@@ -57,7 +57,10 @@ jobs:
   apply:
     name: gw apply (live)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,6 +82,7 @@ jobs:
           GW_ORG: ${{ secrets.GW_ORG }}
           GW_APP_ID: ${{ secrets.GW_APP_ID }}
           GW_APP_INSTALLATION_ID: ${{ secrets.GW_APP_INSTALLATION_ID }}
+          GW_RESOURCE_PREFIX: ${{ vars.GW_RESOURCE_PREFIX }}
       - name: Cleanup key file
         if: always()
         run: rm -f "$KEY_FILE"

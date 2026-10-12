@@ -1,0 +1,23 @@
+{
+  "narrative": "GitWeave now owns its resource namespace via GW_RESOURCE_PREFIX. Before this change, gw plan, apply and reset all hard-required FORGE_RESOURCE_PREFIX — a forge test-isolation variable with no place in production — so operators could not run the apply path without forge's env. Now GW_RESOURCE_PREFIX is the ownership gate; FORGE_RESOURCE_PREFIX optionally narrows scope in forge CI runs. The Apply workflow CI no longer calls the broken apply-overlays.py stub, the apply job carries GW_RESOURCE_PREFIX from secrets, and the full offline test suite exits zero.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "gw plan succeeds with GW_RESOURCE_PREFIX alone",
+      "acRef": "WI-5",
+      "command": "gw plan"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "gw apply scopes resources by GW_RESOURCE_PREFIX",
+      "acRef": "WI-5",
+      "command": "gw apply --json"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Offline test suite exits zero",
+      "acRef": "WI-4",
+      "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
+    }
+  ]
+}

@@ -39,3 +39,12 @@ def test_private_key_written_to_temp_file_not_echoed():
     assert "mktemp" in content, "Private key handling must use mktemp"
     assert "echo $GW_APP_PRIVATE_KEY\n" not in content
     assert 'echo "$GW_APP_PRIVATE_KEY"\n' not in content
+
+
+def test_gw_resource_prefix_is_not_a_secret():
+    """AC1: GW_RESOURCE_PREFIX must not come from secrets context — it is not sensitive."""
+    content = WORKFLOW.read_text()
+    assert "secrets.GW_RESOURCE_PREFIX" not in content, (
+        "GW_RESOURCE_PREFIX must not be a secret — use vars.GW_RESOURCE_PREFIX "
+        "or a plain workflow value instead"
+    )
