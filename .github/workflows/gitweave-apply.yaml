@@ -82,7 +82,7 @@ jobs:
           GW_ORG: ${{ secrets.GW_ORG }}
           GW_APP_ID: ${{ secrets.GW_APP_ID }}
           GW_APP_INSTALLATION_ID: ${{ secrets.GW_APP_INSTALLATION_ID }}
-          GW_RESOURCE_PREFIX: ${{ secrets.GW_RESOURCE_PREFIX }}
+          GW_RESOURCE_PREFIX: ${{ vars.GW_RESOURCE_PREFIX }}
       - name: Cleanup key file
         if: always()
         run: rm -f "$KEY_FILE"
