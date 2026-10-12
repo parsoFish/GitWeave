@@ -1,1 +1,1 @@
-[stderr] Error: FORGE_RESOURCE_PREFIX must be set and non-empty
+[stderr] Error: GW_RESOURCE_PREFIX must be set and non-empty
