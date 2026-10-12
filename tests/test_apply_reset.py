@@ -17,6 +17,7 @@ from gitweave.reset import reset, ResetResult
 @pytest.fixture(autouse=True)
 def set_prefix(monkeypatch):
     monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
+    monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
 
 
 def _make_team(name: str):
