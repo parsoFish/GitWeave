@@ -1,0 +1,15 @@
+[stderr] Traceback (most recent call last):
+  File "/home/parso/.local/bin/gw", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i3a-green-apply-path/gitweave/cli.py", line 121, in main
+    args.func(args)
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i3a-green-apply-path/gitweave/cli.py", line 90, in cmd_org_rulesets
+    print(json.dumps(RulesetsManager(_get_org_client()).list_managed(), indent=2))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i3a-green-apply-path/gitweave/managers/rulesets.py", line 27, in __init__
+    self._prefix = _get_prefix()
+                   ^^^^^^^^^^^^^
+  File "/home/parso/forge/_worktrees/INIT-2026-10-11-i3a-green-apply-path/gitweave/managers/rulesets.py", line 16, in _get_prefix
+    raise EnvironmentError("FORGE_RESOURCE_PREFIX must be set and non-empty")
+OSError: FORGE_RESOURCE_PREFIX must be set and non-empty
