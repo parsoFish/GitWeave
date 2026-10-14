@@ -1,0 +1,32 @@
+# gitweave self-serve policy
+# One entry per team slug; each entry declares what that team is allowed to request.
+teams:
+  - slug: platform
+    allowed_request_types:
+      - new-repo
+      - content-update
+      - team-membership
+      - policy-exception
+    allowed_repo_patterns:
+      - "forge-*"
+    allowed_content_settings:
+      - branch_protection
+      - repo_variables
+      - environments
+      - topics
+      - description
+
+  - slug: dave-parso
+    allowed_request_types:
+      - new-repo
+      - content-update
+      - team-membership
+    allowed_repo_patterns:
+      - "forge-*"
+      - "gw-*"
+    allowed_content_settings:
+      - branch_protection
+      - repo_variables
+      - environments
+      - topics
+      - description
