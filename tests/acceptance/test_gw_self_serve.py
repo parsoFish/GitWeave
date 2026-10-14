@@ -142,8 +142,11 @@ class TestSelfServeAcceptance(unittest.TestCase):
         gh_org = _build_gh_org()
 
         # Ensure caller is in platform team via App token (prerequisite)
+        from gitweave.auth import get_github_client
+        gh = get_github_client()
+        gh_user = gh.get_user(login)
         gh_team = gh_org.get_team_by_slug("platform")
-        gh_team.add_to_members(login)
+        gh_team.add_membership(gh_user)
 
         result = _run_gw(
             "self-serve", "add-member",
@@ -238,6 +241,10 @@ class TestSelfServeAcceptance(unittest.TestCase):
             k: v for k, v in os.environ.items()
             if k not in ("GW_CALLER_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
         }
+        # Preserve PYTHONUSERBASE so the `gw` entry-point can still import
+        # gitweave after HOME is overridden (Python resolves user site-packages
+        # via HOME when PYTHONUSERBASE is not set).
+        env["PYTHONUSERBASE"] = os.path.join(os.path.expanduser("~"), ".local")
         with tempfile.TemporaryDirectory() as fake_home:
             env["HOME"] = fake_home
             result = subprocess.run(
