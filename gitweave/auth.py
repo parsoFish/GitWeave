@@ -1,7 +1,68 @@
 """GitHub App authentication for gitweave."""
 
+import json
 import os
+import subprocess
+import urllib.request
 from github import Github, Auth
+
+
+class CallerTokenRequiredError(EnvironmentError):
+    """Raised when no caller token is available."""
+
+
+def get_caller_token() -> str:
+    """Return caller token from GW_CALLER_TOKEN or 'gh auth token'.
+
+    Raises CallerTokenRequiredError if neither is available.
+    Never returns an empty string or None.
+    """
+    token = os.environ.get("GW_CALLER_TOKEN", "").strip()
+    if token:
+        return token
+
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        token = result.stdout.strip()
+        if result.returncode == 0 and token:
+            return token
+    except FileNotFoundError:
+        pass  # gh not installed
+
+    raise CallerTokenRequiredError(
+        "caller-token-required: set GW_CALLER_TOKEN or authenticate with 'gh auth login'"
+    )
+
+
+def resolve_caller_login(token: str, api_url: str = "https://api.github.com") -> str:
+    """Resolve the GitHub login for *token* via GET /user.
+
+    Uses urllib.request so tests can mock urllib.request.urlopen.
+
+    Raises CallerTokenRequiredError if the token is rejected (401).
+    """
+    req = urllib.request.Request(
+        f"{api_url}/user",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read())
+            return data["login"]
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            raise CallerTokenRequiredError(
+                "caller-token-required: token rejected by GitHub API (401)"
+            ) from exc
+        raise
 
 REQUIRED_ENV = [
     "GW_APP_ID",
