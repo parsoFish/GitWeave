@@ -1,0 +1,52 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 577 items
+
+tests/acceptance/test_gw_apply_path.py ss                                [  0%]
+tests/acceptance/test_gw_reset_before_apply.py ss                        [  0%]
+tests/acceptance/test_gw_workflow.py sss                                 [  1%]
+tests/test_apply_reset.py ..................                             [  4%]
+tests/test_apply_workflow_rewired.py ....                                [  5%]
+tests/test_apply_workflow_structure.py .................                 [  7%]
+tests/test_auth.py .......                                               [  9%]
+tests/test_brownfield_import_validate.py sssssssssssssss                 [ 11%]
+tests/test_bump_module_version.py ....................................   [ 18%]
+tests/test_calver_ci_workflow.py .........................               [ 22%]
+tests/test_ci_workflow.py ..................                             [ 25%]
+tests/test_cli.py .......                                                [ 26%]
+tests/test_config.py ........                                            [ 28%]
+tests/test_copier_schema.py ............................................ [ 35%]
+.......                                                                  [ 36%]
+tests/test_copier_schema_ci.py .......                                   [ 38%]
+tests/test_docs_no_terraform_tokens.py ...                               [ 38%]
+tests/test_docs_terraform_retired.py .....                               [ 39%]
+tests/test_dry_run_ci_workflow.py ..................s.                   [ 42%]
+tests/test_dry_run_smoke.py ............                                 [ 45%]
+tests/test_example_template_removed.py ..                                [ 45%]
+tests/test_gw_apply_workflow.py .....                                    [ 46%]
+tests/test_gw_schemas.py ....                                            [ 46%]
+tests/test_gw_teams.py ...                                               [ 47%]
+tests/test_incremental_overlay_validation.py ..................          [ 50%]
+tests/test_legal_files.py .......                                        [ 51%]
+tests/test_manager_org.py .........                                      [ 53%]
+tests/test_manager_resources.py .........................                [ 57%]
+tests/test_module_update_pr_workflow.py ....................             [ 61%]
+tests/test_overlay_ci_validation_workflow.py .....................       [ 64%]
+tests/test_overlay_example_config.py ..............                      [ 67%]
+tests/test_overlay_schema.py ........................................... [ 74%]
+............................                                             [ 79%]
+tests/test_ownership_marker.py .......                                   [ 80%]
+tests/test_package_structure.py ....                                     [ 81%]
+tests/test_parallel_validate_overlay_configs.py ....................     [ 84%]
+tests/test_plan.py .......                                               [ 86%]
+tests/test_pruned_artefacts.py ......                                    [ 87%]
+tests/test_repo_hygiene.py ....                                          [ 87%]
+tests/test_scale_fixtures.py ....................................        [ 94%]
+tests/test_structure.py .......                                          [ 95%]
+tests/test_validate_overlay_configs_script.py .......................... [ 99%]
+.                                                                        [100%]
+
+======================= 554 passed, 23 skipped in 10.14s =======================
