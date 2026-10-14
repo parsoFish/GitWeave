@@ -35,11 +35,20 @@ def _mock_org(caller_state: str = "active"):
     membership = MagicMock()
     membership.state = caller_state
     gh_team.get_team_membership.return_value = membership
-    gh_team.add_to_members = MagicMock()
-    gh_team.remove_from_members = MagicMock()
+    gh_team.add_membership = MagicMock()
+    gh_team.remove_membership = MagicMock()
 
     org.get_team_by_slug.return_value = gh_team
     return org
+
+
+def _mock_gh(login: str):
+    """Return a mock root Github client whose get_user returns a NamedUser mock."""
+    gh = MagicMock()
+    user = MagicMock()
+    user.login = login
+    gh.get_user.return_value = user
+    return gh
 
 
 def _mock_org_no_membership():
@@ -65,26 +74,32 @@ class TestSelfServeMembership:
     # AC1: happy path — caller is active member, policy allows team-membership
     def test_add_member_when_permitted(self):
         org = _mock_org(caller_state="active")
-        result = self_serve_add_member("platform", "new-hire", org, POLICY, "alice")
+        gh = _mock_gh("new-hire")
+        result = self_serve_add_member("platform", "new-hire", org, POLICY, "alice", gh=gh)
         org.get_team_by_slug.assert_called_once_with("platform")
-        org.get_team_by_slug.return_value.add_to_members.assert_called_once_with("new-hire")
+        gh.get_user.assert_called_once_with("new-hire")
+        org.get_team_by_slug.return_value.add_membership.assert_called_once_with(
+            gh.get_user.return_value
+        )
         assert result == {"applied": True}
 
     # AC2: caller not in team → PolicyDenied (sentinel gate test)
     def test_policy_violation_exits_nonzero(self):
         org = _mock_org_no_membership()
+        gh = _mock_gh("new-hire")
         with pytest.raises(PolicyDenied) as exc_info:
-            self_serve_add_member("platform", "new-hire", org, POLICY, "not-a-member")
-        org.get_team_by_slug.return_value.add_to_members.assert_not_called()
+            self_serve_add_member("platform", "new-hire", org, POLICY, "not-a-member", gh=gh)
+        org.get_team_by_slug.return_value.add_membership.assert_not_called()
         assert "not-a-member" in str(exc_info.value)
         assert "member" in str(exc_info.value).lower()
 
     # AC2 variant: membership exists but state is not active
     def test_pending_caller_is_denied(self):
         org = _mock_org(caller_state="pending")
+        gh = _mock_gh("new-hire")
         with pytest.raises(PolicyDenied) as exc_info:
-            self_serve_add_member("platform", "new-hire", org, POLICY, "alice")
-        org.get_team_by_slug.return_value.add_to_members.assert_not_called()
+            self_serve_add_member("platform", "new-hire", org, POLICY, "alice", gh=gh)
+        org.get_team_by_slug.return_value.add_membership.assert_not_called()
         assert "alice" in str(exc_info.value)
 
     # AC3: team not in policy → PolicyDenied naming the team
@@ -99,9 +114,13 @@ class TestSelfServeMembership:
     # AC4: happy path remove — caller is active member, policy allows team-membership
     def test_remove_member_when_permitted(self):
         org = _mock_org(caller_state="active")
-        result = self_serve_remove_member("platform", "leaver", org, POLICY, "alice")
+        gh = _mock_gh("leaver")
+        result = self_serve_remove_member("platform", "leaver", org, POLICY, "alice", gh=gh)
         org.get_team_by_slug.assert_called_once_with("platform")
-        org.get_team_by_slug.return_value.remove_from_members.assert_called_once_with("leaver")
+        gh.get_user.assert_called_once_with("leaver")
+        org.get_team_by_slug.return_value.remove_membership.assert_called_once_with(
+            gh.get_user.return_value
+        )
         assert result == {"applied": True}
 
     # AC4 guard: remove denied when team not in policy
