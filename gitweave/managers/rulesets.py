@@ -43,9 +43,10 @@ class RulesetsManager:
         self._prefix = _get_prefix()
 
     def list_managed(self) -> list:
-        """Return rulesets whose name starts with FORGE_RESOURCE_PREFIX.
+        """Return rulesets whose name starts with GW_RESOURCE_PREFIX.
 
-        Returns empty list when the org plan does not support rulesets (HTTP 403).
+        Returns empty list when the org plan does not support rulesets
+        (GithubException with HTTP 403).  Other exceptions propagate.
         """
         try:
             _, data = self._org._requester.requestJsonAndCheck(
@@ -53,7 +54,8 @@ class RulesetsManager:
                 f"/orgs/{self._org.login}/rulesets",
             )
         except Exception as exc:
-            if "403" in str(exc):
+            from github import GithubException  # local import to keep optional
+            if isinstance(exc, GithubException) and exc.status == 403:
                 return []
             raise
         return [r for r in (data or []) if _is_managed(r.get("name", ""), self._prefix)]
@@ -81,10 +83,11 @@ class RulesetsManager:
                 )
             return ResourceStatus(name=name, status="ok")
         except Exception as exc:
-            if "403" in str(exc):
+            from github import GithubException  # local import to keep optional
+            if isinstance(exc, GithubException) and exc.status == 403:
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
-            return ResourceStatus(name=name, status="error", error=str(exc))
+            raise
 
     def delete(self, name: str) -> ResourceStatus:
         """Delete a ruleset by name; treat 404 as success."""
