@@ -9,6 +9,10 @@ teams:
       - policy-exception
     allowed_repo_patterns:
       - "forge-*"
+    allowed_exceptions:
+      - skip-codeowners
+      - skip-branch-protection
+      - skip-required-reviews
     allowed_content_settings:
       - branch_protection
       - repo_variables
