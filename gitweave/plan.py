@@ -138,4 +138,23 @@ def _diff(cfg: dict, snapshot: dict, prefix: str) -> PlanResult:
         for n in sorted(declared_names & snap_names):
             result.items.append(PlanItem(label, n, "unchanged"))
 
+    # Self-serve resource types: no prefix filter (explicitly declared in policy).
+    self_serve_type_map = {
+        "self_serve_repos": "self_serve_repo",
+        "policy_exceptions": "policy_exception",
+        "team_memberships": "team_membership",
+    }
+
+    for rtype, label in self_serve_type_map.items():
+        declared_names = {_resource_name(r) for r in cfg.get(rtype, [])}
+        declared_names.discard("")
+        snap_names = {_resource_name(r) for r in snapshot.get(rtype, [])}
+        snap_names.discard("")
+        for n in sorted(declared_names - snap_names):
+            result.items.append(PlanItem(label, n, "create"))
+        for n in sorted(snap_names - declared_names):
+            result.items.append(PlanItem(label, n, "delete"))
+        for n in sorted(declared_names & snap_names):
+            result.items.append(PlanItem(label, n, "unchanged"))
+
     return result
