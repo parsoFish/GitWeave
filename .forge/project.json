@@ -78,6 +78,9 @@
       "ignoreKeys": [
         "default_branch_sha"
       ]
+    },
+    "run": {
+      "gw": "python3 -m gitweave.cli"
     }
   }
 }
