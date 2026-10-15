@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import unittest
 
 _BASE_REQUIRED_VARS = (
@@ -49,9 +50,9 @@ def _have_forge_credentials() -> bool:
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
-    """Run gw with current environment (credentials must be set)."""
+    """Run gw via sys.executable so it works regardless of entry-point install."""
     return subprocess.run(
-        ["gw", *args],
+        [sys.executable, "-m", "gitweave.cli", *args],
         capture_output=True,
         text=True,
     )

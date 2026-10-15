@@ -50,9 +50,9 @@ def _strip_volatile(obj):
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
-    """Run gw with current environment (credentials must be set)."""
+    """Run gw via sys.executable so it works regardless of entry-point install."""
     return subprocess.run(
-        ["gw", *args],
+        [sys.executable, "-m", "gitweave.cli", *args],
         capture_output=True,
         text=True,
     )
