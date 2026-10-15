@@ -55,7 +55,9 @@
         "GW_ORG",
         "GW_APP_ID",
         "GW_APP_INSTALLATION_ID",
-        "GW_APP_PRIVATE_KEY_PATH"
+        "GW_APP_PRIVATE_KEY_PATH",
+        "GW_CALLER_TOKEN",
+        "GW_RESOURCE_PREFIX"
       ]
     }
   },
