@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -44,8 +45,12 @@ def _resource_prefix() -> str:
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
-    """Run gw with current environment (credentials must be set)."""
-    return subprocess.run(["gw", *args], capture_output=True, text=True)
+    """Run gw via sys.executable so it works regardless of entry-point install."""
+    return subprocess.run(
+        [sys.executable, "-m", "gitweave.cli", *args],
+        capture_output=True,
+        text=True,
+    )
 
 
 def _build_gh_org():
@@ -248,7 +253,8 @@ class TestSelfServeAcceptance(unittest.TestCase):
         with tempfile.TemporaryDirectory() as fake_home:
             env["HOME"] = fake_home
             result = subprocess.run(
-                ["gw", "self-serve", "new-repo", "--team", "platform", "--name", "any-repo"],
+                [sys.executable, "-m", "gitweave.cli",
+                 "self-serve", "new-repo", "--team", "platform", "--name", "any-repo"],
                 capture_output=True,
                 text=True,
                 env=env,
