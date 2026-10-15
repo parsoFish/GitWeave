@@ -1,23 +1,23 @@
 """tests/conftest.py — pytest session configuration.
 
-Skips all tests under tests/acceptance/ when the ``gw`` CLI binary is not
-functional (import failure, missing binary, etc.).  This guards against the
-gate environment having live credentials set but an uninstalled package,
-which would cause acceptance tests to *run* rather than skip and then fail
-hard with ModuleNotFoundError.
+Skips all tests under tests/acceptance/ when the ``gitweave`` package is not
+importable.  Uses ``sys.executable`` (same interpreter as pytest) so it works
+whether the ``gw`` entry-point binary is installed or not — the gate may run
+pytest with ``pythonpath = ["."]`` without a globally installed ``gw`` script.
 """
 
 from __future__ import annotations
 
 import subprocess
+import sys
 import pytest
 
 
 def _gw_functional() -> bool:
-    """Return True if the ``gw`` binary exits 0 on ``--help``."""
+    """Return True if gitweave.cli is importable via the current interpreter."""
     try:
         result = subprocess.run(
-            ["gw", "--help"],
+            [sys.executable, "-m", "gitweave.cli", "--help"],
             capture_output=True,
             timeout=15,
         )
