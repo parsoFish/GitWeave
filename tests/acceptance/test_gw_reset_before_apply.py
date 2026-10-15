@@ -13,6 +13,7 @@ Checks:
 import json
 import os
 import subprocess
+import sys
 import unittest
 
 _REQUIRED_VARS = (
@@ -34,8 +35,9 @@ def _have_credentials() -> bool:
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
+    """Run gw via sys.executable so it works regardless of entry-point install."""
     return subprocess.run(
-        ["gw", *args],
+        [sys.executable, "-m", "gitweave.cli", *args],
         capture_output=True,
         text=True,
     )
