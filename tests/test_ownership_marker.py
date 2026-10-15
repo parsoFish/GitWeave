@@ -61,10 +61,10 @@ class TestOwnershipMarker:
         )
 
     def test_forge_prefix_narrows_scope(self, monkeypatch):
-        """AC2: both GW_RESOURCE_PREFIX and FORGE_RESOURCE_PREFIX set,
-        FORGE_RESOURCE_PREFIX starts with GW_RESOURCE_PREFIX →
+        """AC2: both GW_RESOURCE_PREFIX and FORGE_RESOURCE_PREFIX set →
         only resources matching FORGE_RESOURCE_PREFIX are included;
         a resource matching GW_RESOURCE_PREFIX but not FORGE_RESOURCE_PREFIX is absent.
+        FORGE_RESOURCE_PREFIX takes full priority (independent namespace).
         """
         assert ORG_EMPTY_FIXTURE.exists(), "tests/fixtures/org-empty.json must exist"
 
@@ -122,9 +122,11 @@ class TestOwnershipMarker:
         assert "alpha" in names_in_result
         assert "beta" in names_in_result
 
-    def test_forge_prefix_not_starting_with_gw_prefix_is_refused(self, monkeypatch):
+    def test_forge_prefix_independent_of_gw_prefix(self, monkeypatch):
         """AC2: FORGE_RESOURCE_PREFIX doesn't start with GW_RESOURCE_PREFIX →
-        EnvironmentError raised naming FORGE_RESOURCE_PREFIX, nothing changed.
+        plan() still succeeds; FORGE_RESOURCE_PREFIX takes priority as independent prefix.
+        Resources matching only GW_RESOURCE_PREFIX are excluded; only those matching
+        FORGE_RESOURCE_PREFIX appear.
         """
         assert ORG_EMPTY_FIXTURE.exists(), "tests/fixtures/org-empty.json must exist"
 
@@ -133,14 +135,21 @@ class TestOwnershipMarker:
 
         cfg = {
             "org_settings": _BASE_ORG_SETTINGS.copy(),
-            "teams": [{"name": "gw-test-alpha"}],
+            "teams": [
+                {"name": "gw-test-alpha"},       # matches GW prefix, not FORGE → excluded
+                {"name": "unrelated-prefix-x"},  # matches FORGE prefix → included
+            ],
             "repos": [],
             "rulesets": [],
         }
 
         with patch("gitweave.plan.load_config", return_value=cfg):
-            with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
-                plan(fixture_path=str(ORG_EMPTY_FIXTURE))
+            result = plan(fixture_path=str(ORG_EMPTY_FIXTURE))
+
+        assert isinstance(result, PlanResult)
+        names = {item.name for item in result.items}
+        assert "unrelated-prefix-x" in names, "FORGE-prefix resource should be included"
+        assert "gw-test-alpha" not in names, "GW-only resource should be excluded when FORGE set"
 
     def test_gw_resource_prefix_required_when_no_forge_prefix(self, monkeypatch):
         """AC1: GW_RESOURCE_PREFIX unset and FORGE_RESOURCE_PREFIX unset →
@@ -183,17 +192,17 @@ class TestOwnershipMarker:
         assert len(managed) == 1
         assert managed[0].name == "gw-test-alpha"
 
-    def test_managers_refuse_mismatched_forge_prefix(self, monkeypatch):
+    def test_managers_accept_independent_forge_prefix(self, monkeypatch):
         """AC2: FORGE_RESOURCE_PREFIX doesn't start with GW_RESOURCE_PREFIX →
-        manager __init__ raises EnvironmentError naming FORGE_RESOURCE_PREFIX.
+        manager __init__ succeeds; FORGE_RESOURCE_PREFIX is used as the effective prefix.
         """
         from unittest.mock import MagicMock
 
         from gitweave.managers.teams import TeamsManager
 
         monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
-        monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "bad-prefix-")
+        monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "independent-prefix-")
 
         org = MagicMock()
-        with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
-            TeamsManager(org)
+        mgr = TeamsManager(org)
+        assert mgr._prefix == "independent-prefix-"

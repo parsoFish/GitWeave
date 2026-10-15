@@ -1,8 +1,8 @@
 """TeamsManager — create/update/delete GitHub org teams under GW_RESOURCE_PREFIX.
 
 GW_RESOURCE_PREFIX is the primary ownership marker.  FORGE_RESOURCE_PREFIX is
-optional; when set it must start with GW_RESOURCE_PREFIX and only narrows the
-scope of managed resources to that sub-prefix.
+optional; when set it takes priority and narrows scope to that prefix only
+(the two prefixes are independent namespaces — no sub-prefix requirement).
 """
 import os
 
@@ -13,21 +13,14 @@ def _get_prefix() -> str:
     """Return the effective resource prefix.
 
     Uses GW_RESOURCE_PREFIX as the primary marker.  If FORGE_RESOURCE_PREFIX is
-    also set it must start with GW_RESOURCE_PREFIX; otherwise EnvironmentError
-    is raised naming FORGE_RESOURCE_PREFIX explicitly.
+    also set it takes priority (initiative-scoped prefix overrides the broad org
+    prefix; they are independent namespaces).
     """
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty")
     forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        return forge_prefix
-    return gw_prefix
+    return forge_prefix if forge_prefix else gw_prefix
 
 
 def _is_managed(name: str, prefix: str) -> bool:
