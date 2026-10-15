@@ -117,6 +117,33 @@ def test_load_config_repos_empty_when_no_repos_dir(tmp_path):
     assert result["repos"] == []
 
 
+def test_load_config_repos_skips_overlay_yaml(tmp_path):
+    """Files with an `apiVersion` key are overlay specs for apply-overlays.py
+    and must NOT be included in the gitweave repos list."""
+    root = _build_valid_root(tmp_path)
+    # Write an overlay YAML (has apiVersion) — should be skipped
+    _write(
+        root / "config" / "repos" / "example.yaml",
+        "apiVersion: gitweave.io/v1\n"
+        "kind: RepositoryOverlay\n"
+        "metadata:\n"
+        "  name: example-smoke-repo\n"
+        "spec:\n"
+        "  repository: my-org/example-smoke-repo\n"
+        "  modules: []\n",
+    )
+    # Write a normal repo config (no apiVersion) — should be included
+    _write(
+        root / "config" / "repos" / "real-repo.yaml",
+        "visibility: private\n",
+    )
+    result = config_mod.load_config(root=root)
+
+    slugs = [r["slug"] for r in result["repos"]]
+    assert "real-repo" in slugs, "Normal repo config should be loaded"
+    assert "example" not in slugs, "Overlay YAML with apiVersion should be skipped"
+
+
 # ---------------------------------------------------------------------------
 # AC2: Invalid field raises jsonschema.ValidationError
 # ---------------------------------------------------------------------------
