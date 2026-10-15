@@ -69,16 +69,9 @@ def plan(fixture_path: str | None = None) -> PlanResult:
     cfg = load_config()
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope when set; must start with gw_prefix.
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        prefix = forge_prefix  # narrower scope — forge_prefix ⊆ gw_prefix space
-    else:
-        prefix = gw_prefix
+    # FORGE_RESOURCE_PREFIX narrows scope to the initiative when set;
+    # takes full priority over GW_RESOURCE_PREFIX (they are independent namespaces).
+    prefix = forge_prefix if forge_prefix else gw_prefix
 
     if fixture_path is not None:
         snapshot = _load_fixture(fixture_path)

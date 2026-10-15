@@ -62,11 +62,11 @@ def test_get_prefix_returns_forge_prefix_when_valid(monkeypatch):
     assert _get_prefix() == "gw-test-forge-"
 
 
-def test_get_prefix_raises_when_forge_does_not_start_with_gw(monkeypatch):
+def test_get_prefix_returns_forge_prefix_when_independent_of_gw(monkeypatch):
+    """FORGE_RESOURCE_PREFIX takes priority regardless of whether it starts with GW."""
     monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
     monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "unrelated-")
-    with pytest.raises(EnvironmentError, match="FORGE_RESOURCE_PREFIX"):
-        _get_prefix()
+    assert _get_prefix() == "unrelated-"
 
 
 # ---------------------------------------------------------------------------

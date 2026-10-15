@@ -92,8 +92,16 @@ class TestGwApplyPath(unittest.TestCase):
     """Full apply→reset lifecycle with GW_RESOURCE_PREFIX set."""
 
     def test_gw_apply_path_with_gw_resource_prefix(self):
-        prefix = os.environ["GW_RESOURCE_PREFIX"]
+        gw_prefix = os.environ["GW_RESOURCE_PREFIX"]
+        forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
+        # Use FORGE_RESOURCE_PREFIX when set — it takes priority and is independent of GW prefix.
+        prefix = forge_prefix if forge_prefix else gw_prefix
         gh_org = _build_gh_org()
+
+        # Capture org state before apply to diff against after.
+        before_teams = set(_api_teams(gh_org))
+        before_repos = set(_api_repos(gh_org))
+        before_rulesets = set(_api_rulesets(gh_org))
 
         # Plan against live org — must exit 0
         plan = _run_gw("plan")
@@ -111,33 +119,35 @@ class TestGwApplyPath(unittest.TestCase):
             f"gw apply failed:\n{apply_run.stderr}",
         )
 
-        # AC3: Containment — assert on API state, not stdout.
+        # AC3: Containment — only NEW resources created by apply must have the prefix.
+        # Pre-existing org resources (engineering, platform, etc.) are not managed by gw
+        # and are excluded from the containment check.
         # org_settings are org-level (no name/marker), excluded from containment.
-        all_teams = _api_teams(gh_org)
-        non_prefixed_teams = [n for n in all_teams if not n.startswith(prefix)]
+        new_teams = [n for n in set(_api_teams(gh_org)) - before_teams
+                     if not n.startswith(prefix)]
         self.assertEqual(
-            non_prefixed_teams,
+            new_teams,
             [],
-            f"gw apply created/modified teams outside GW_RESOURCE_PREFIX={prefix!r}: "
-            f"{non_prefixed_teams}",
+            f"gw apply created teams outside effective prefix {prefix!r}: "
+            f"{new_teams}",
         )
 
-        all_repos = _api_repos(gh_org)
-        non_prefixed_repos = [n for n in all_repos if not n.startswith(prefix)]
+        new_repos = [n for n in set(_api_repos(gh_org)) - before_repos
+                     if not n.startswith(prefix)]
         self.assertEqual(
-            non_prefixed_repos,
+            new_repos,
             [],
-            f"gw apply created/modified repos outside GW_RESOURCE_PREFIX={prefix!r}: "
-            f"{non_prefixed_repos}",
+            f"gw apply created repos outside effective prefix {prefix!r}: "
+            f"{new_repos}",
         )
 
-        all_rulesets = _api_rulesets(gh_org)
-        non_prefixed_rulesets = [n for n in all_rulesets if not n.startswith(prefix)]
+        new_rulesets = [n for n in set(_api_rulesets(gh_org)) - before_rulesets
+                        if not n.startswith(prefix)]
         self.assertEqual(
-            non_prefixed_rulesets,
+            new_rulesets,
             [],
-            f"gw apply created/modified rulesets outside GW_RESOURCE_PREFIX={prefix!r}: "
-            f"{non_prefixed_rulesets}",
+            f"gw apply created rulesets outside effective prefix {prefix!r}: "
+            f"{new_rulesets}",
         )
 
         # Reset — must exit 0
@@ -179,6 +189,10 @@ class TestForgeResourcePrefixNarrowing(unittest.TestCase):
         forge_prefix = os.environ["FORGE_RESOURCE_PREFIX"]
         gh_org = _build_gh_org()
 
+        # Capture org state before apply to diff against after.
+        before_teams = set(_api_teams(gh_org))
+        before_repos = set(_api_repos(gh_org))
+
         # Plan — must exit 0
         plan = _run_gw("plan")
         self.assertEqual(
@@ -195,24 +209,25 @@ class TestForgeResourcePrefixNarrowing(unittest.TestCase):
             f"gw apply failed (forge narrowing):\n{apply_run.stderr}",
         )
 
-        # Containment: no team/repo/ruleset outside FORGE_RESOURCE_PREFIX (API state).
+        # Containment: only NEW resources created by apply must match FORGE_RESOURCE_PREFIX.
+        # Pre-existing org resources are not managed by gw and are excluded.
         # org_settings are org-level, excluded.
-        all_teams = _api_teams(gh_org)
-        non_forge_teams = [n for n in all_teams if not n.startswith(forge_prefix)]
+        new_teams = [n for n in set(_api_teams(gh_org)) - before_teams
+                     if not n.startswith(forge_prefix)]
         self.assertEqual(
-            non_forge_teams,
+            new_teams,
             [],
-            f"Teams outside FORGE_RESOURCE_PREFIX={forge_prefix!r} after apply: "
-            f"{non_forge_teams}",
+            f"gw apply created teams outside FORGE_RESOURCE_PREFIX={forge_prefix!r}: "
+            f"{new_teams}",
         )
 
-        all_repos = _api_repos(gh_org)
-        non_forge_repos = [n for n in all_repos if not n.startswith(forge_prefix)]
+        new_repos = [n for n in set(_api_repos(gh_org)) - before_repos
+                     if not n.startswith(forge_prefix)]
         self.assertEqual(
-            non_forge_repos,
+            new_repos,
             [],
-            f"Repos outside FORGE_RESOURCE_PREFIX={forge_prefix!r} after apply: "
-            f"{non_forge_repos}",
+            f"gw apply created repos outside FORGE_RESOURCE_PREFIX={forge_prefix!r}: "
+            f"{new_repos}",
         )
 
         # Reset — clean up

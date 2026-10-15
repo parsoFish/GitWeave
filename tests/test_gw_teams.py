@@ -24,7 +24,7 @@ def test_teams_yaml_validates_against_schema():
 
 def test_gw_plan_fixture_exits_zero():
     """gw plan --fixture tests/fixtures/org-empty.json exits 0 with no network calls."""
-    env = {**os.environ, "FORGE_RESOURCE_PREFIX": ""}
+    env = {**os.environ, "FORGE_RESOURCE_PREFIX": "", "GW_RESOURCE_PREFIX": ""}
     result = subprocess.run(
         [sys.executable, "-m", "gitweave.cli",
          "plan", "--fixture", str(ROOT / "tests" / "fixtures" / "org-empty.json")],

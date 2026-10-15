@@ -37,12 +37,16 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
     rulesets_raw = _load_yaml("config/rulesets.yaml", root)
     jsonschema.validate(rulesets_raw, _load_schema("schemas/org-ruleset.schema.json", root))
 
-    # Repos: scan config/repos/*.yaml (no top-level schema enforced yet)
+    # Repos: scan config/repos/*.yaml (no top-level schema enforced yet).
+    # Skip overlay YAML files (identified by an `apiVersion` key — those are
+    # for apply-overlays.py, not for gitweave's repo manager).
     repos = []
     repos_dir = root / "config" / "repos"
     if repos_dir.exists():
         for f in sorted(repos_dir.glob("*.yaml")):
             repo_cfg = yaml.safe_load(f.read_text()) or {}
+            if "apiVersion" in repo_cfg:
+                continue
             repo_cfg.setdefault("slug", f.stem)
             repos.append(repo_cfg)
 

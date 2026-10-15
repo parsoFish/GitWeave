@@ -1,7 +1,7 @@
 """RulesetsManager — create/delete GitHub org rulesets under GW_RESOURCE_PREFIX.
 
 GW_RESOURCE_PREFIX is the primary ownership marker.  FORGE_RESOURCE_PREFIX is
-optional; when set it must start with GW_RESOURCE_PREFIX and only narrows scope.
+optional; when set it takes priority (independent namespace — no sub-prefix requirement).
 
 PyGithub does not expose a high-level ruleset API, so we call the GitHub REST
 API directly via the org's requester object (org._requester) or a plain requests
@@ -16,21 +16,14 @@ from gitweave.managers.org import ResourceStatus
 def _get_prefix() -> str:
     """Return the effective resource prefix.
 
-    Uses GW_RESOURCE_PREFIX as primary.  FORGE_RESOURCE_PREFIX, if set, must
-    start with GW_RESOURCE_PREFIX; otherwise EnvironmentError names it.
+    Uses GW_RESOURCE_PREFIX as primary.  FORGE_RESOURCE_PREFIX, if set, takes
+    priority (initiative-scoped prefix; independent namespace).
     """
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty")
     forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        return forge_prefix
-    return gw_prefix
+    return forge_prefix if forge_prefix else gw_prefix
 
 
 def _is_managed(name: str, prefix: str) -> bool:
@@ -87,7 +80,9 @@ class RulesetsManager:
             if isinstance(exc, GithubException) and exc.status == 403:
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
-            raise
+            if "403" in str(exc):
+                raise
+            return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:
         """Delete a ruleset by name; treat 404 as success."""
