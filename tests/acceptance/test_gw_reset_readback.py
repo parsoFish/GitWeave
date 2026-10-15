@@ -33,12 +33,15 @@ def _have_credentials() -> bool:
 
 
 def _effective_prefix() -> str:
-    """Return FORGE_RESOURCE_PREFIX if set and valid, else GW_RESOURCE_PREFIX."""
-    gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
+    """Return FORGE_RESOURCE_PREFIX if set, else GW_RESOURCE_PREFIX.
+
+    FORGE_RESOURCE_PREFIX and GW_RESOURCE_PREFIX are independent namespaces;
+    no sub-prefix relationship is required.
+    """
     forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix and forge_prefix.startswith(gw_prefix):
+    if forge_prefix:
         return forge_prefix
-    return gw_prefix
+    return os.environ.get("GW_RESOURCE_PREFIX", "")
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
