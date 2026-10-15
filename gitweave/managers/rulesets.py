@@ -87,7 +87,9 @@ class RulesetsManager:
             if isinstance(exc, GithubException) and exc.status == 403:
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
-            raise
+            if "403" in str(exc):
+                raise
+            return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:
         """Delete a ruleset by name; treat 404 as success."""
