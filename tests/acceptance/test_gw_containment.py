@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import unittest
 from dataclasses import dataclass
 
@@ -39,8 +40,12 @@ def _resource_marker() -> str:
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
-    """Run gw with current environment; never parse stdout for containment decisions."""
-    return subprocess.run(["gw", *args], capture_output=True, text=True)
+    """Run gw via sys.executable so it works regardless of entry-point install."""
+    return subprocess.run(
+        [sys.executable, "-m", "gitweave.cli", *args],
+        capture_output=True,
+        text=True,
+    )
 
 
 def _build_gh_org():
