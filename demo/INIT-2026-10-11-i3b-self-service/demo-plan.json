@@ -1,0 +1,41 @@
+{
+  "narrative": "Teams can now self-serve GitHub operations — create repos, update content settings, manage memberships, and record policy exceptions — without raising a PR on the control repo. The policy engine enforces per-team rules at every entry point, and the plan engine tracks all three self-serve resource types (create/unchanged/delete), closing the gap that cost 8 gate runs in I2.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "Full test suite passes with all self-serve modules wired",
+      "acRef": "WI-10",
+      "command": "python3 -m pytest tests/"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Plan lists self-serve resource types across all three action branches",
+      "acRef": "WI-8",
+      "command": "gw plan"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Rulesets unsupported-plan check typed and docstring correct",
+      "acRef": "WI-13",
+      "command": "python3 -m pytest tests/test_rulesets_unsupported_plan.py"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Org state shows self-serve repos and teams after apply",
+      "acRef": "WI-9",
+      "command": "gw org show --json"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Reset read-back: marker resources gone, second run prints nothing changed",
+      "acRef": "WI-11",
+      "command": "python3 -m pytest tests/acceptance/test_gw_reset_readback.py"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Containment: unmarked resources unchanged after apply+reset, verified via API not stdout",
+      "acRef": "WI-12",
+      "command": "python3 -m pytest tests/acceptance/test_gw_containment.py"
+    }
+  ]
+}
