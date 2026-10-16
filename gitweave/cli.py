@@ -97,11 +97,15 @@ def cmd_org_rulesets(args):
 
 
 def _self_serve_auth():
-    """Return (gh_org, policy, caller_login) or raise CallerTokenRequiredError."""
+    """Return (gh_org, policy, caller_login) or raise CallerTokenRequiredError/PolicyError.
+
+    Policy is loaded before GitHub auth so a missing/invalid config/policy.yaml
+    produces an immediate, clear error rather than an auth failure.
+    """
+    policy = PolicyLoader().load()
     token = get_caller_token()
     gh = get_github_client()
     caller_login = resolve_caller_login(token)
-    policy = PolicyLoader().load()
     gh_org = gh.get_organization(os.environ["GW_ORG"])
     return gh_org, policy, caller_login
 
@@ -184,7 +188,7 @@ def cmd_self_serve_add_exception(args):
 def cmd_self_serve_list_exceptions(args):
     try:
         gh_org, policy, caller_login = _self_serve_auth()
-        result = self_serve_list_exceptions(args.repo, gh_org)
+        result = self_serve_list_exceptions(args.team, args.repo, policy, gh_org)
         print(json.dumps(result))
         sys.exit(0)
     except CallerTokenRequiredError as e:
@@ -256,6 +260,7 @@ def main():
     p_ae.set_defaults(func=cmd_self_serve_add_exception)
 
     p_le = ss_sub.add_parser("list-exceptions", help="List policy exceptions for a repo")
+    p_le.add_argument("--team", required=True, metavar="TEAM")
     p_le.add_argument("--repo", required=True, metavar="REPO")
     p_le.set_defaults(func=cmd_self_serve_list_exceptions)
 

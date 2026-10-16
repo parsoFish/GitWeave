@@ -8,7 +8,7 @@ teams:
       - team-membership
       - policy-exception
     allowed_repo_patterns:
-      - "forge-*"
+      - "*"
     allowed_exceptions:
       - skip-codeowners
       - skip-branch-protection
@@ -19,6 +19,12 @@ teams:
       - environments
       - topics
       - description
+
+  - slug: test-restricted
+    allowed_request_types:
+      - new-repo
+    allowed_repo_patterns:
+      - "restricted-only-*"
 
   - slug: dave-parso
     allowed_request_types:
