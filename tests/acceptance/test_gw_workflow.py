@@ -20,20 +20,11 @@ _REQUIRED_VARS = (
     "GW_RESOURCE_PREFIX",
 )
 
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
-)
-
 _VOLATILE_KEYS = frozenset({
     "id", "node_id", "created_at", "updated_at",
     "source", "source_type", "url", "html_url",
     "links", "_links",
 })
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
 
 
 def _strip_volatile(obj):
@@ -58,9 +49,17 @@ def _run_gw(*args) -> subprocess.CompletedProcess:
     )
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestApplyIdempotency(unittest.TestCase):
     """gw apply --json twice yields identical stable state."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     def test_apply_json_twice_identical_state(self):
         # First apply
@@ -93,20 +92,23 @@ class TestApplyIdempotency(unittest.TestCase):
         self.assertEqual(errors, [], f"apply --json reported errors: {errors}")
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestExtraTeamAbsentAfterApply(unittest.TestCase):
     """A prefixed team NOT in the declaration is absent after gw apply --json."""
 
     def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
+
         from gitweave.auth import get_github_client
 
         self._gh = get_github_client()
         self._gh_org = self._gh.get_organization(os.environ["GW_ORG"])
-        gw_prefix = os.environ["GW_RESOURCE_PREFIX"]
-        forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-        # Use FORGE_RESOURCE_PREFIX when set — it is independent of GW_RESOURCE_PREFIX
-        # and takes priority as the effective scope for all gw commands.
-        self._prefix = forge_prefix if forge_prefix else gw_prefix
+        self._prefix = os.environ["GW_RESOURCE_PREFIX"]
         self._extra_team = f"{self._prefix}extra-stale-team"
 
     def test_stale_prefixed_team_removed_by_apply(self):

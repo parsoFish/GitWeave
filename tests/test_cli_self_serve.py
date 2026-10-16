@@ -2,7 +2,7 @@
 
 import json
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -289,3 +289,108 @@ class TestSelfServeCLI:
         assert exc.value.code != 0
         captured = capsys.readouterr()
         assert "new-repo denied for team alpha" in captured.err
+
+
+class TestSelfServeCLIPermissionGate:
+    """AC5: Real CLI path calls check_permission(); per-repo authorisation enforced."""
+
+    # ------------------------------------------------------------------
+    # AC5-a: check_permission() is called on the new-repo CLI path
+    # ------------------------------------------------------------------
+
+    def test_new_repo_real_path_calls_check_permission(self, capsys, monkeypatch):
+        """check_permission is invoked (via self_serve_new_repo) on the real CLI path.
+
+        Does NOT mock self_serve_new_repo — goes through the real function,
+        only mocking the GitHub API.
+        """
+        monkeypatch.setenv("GW_ORG", _GW_ORG)
+        gh_org = _make_gh_org_mock()
+        # Allow the request so check_permission returns True
+        policy = {
+            "teams": [
+                {
+                    "slug": "alpha",
+                    "allowed_request_types": ["new-repo"],
+                    "allowed_repo_patterns": ["allowed-*"],
+                }
+            ]
+        }
+        gh_org.create_repo = MagicMock(return_value=MagicMock())
+
+        with (
+            patch("gitweave.cli.get_caller_token", return_value="tok"),
+            patch("gitweave.cli.get_github_client", _gh_client_factory(gh_org)),
+            patch("gitweave.cli.resolve_caller_login", return_value="alice"),
+            patch("gitweave.cli.PolicyLoader", _policy_loader_factory(policy)),
+            patch("gitweave.self_serve.new_repo.check_permission") as mock_cp,
+            patch(
+                "sys.argv",
+                ["gw", "self-serve", "new-repo", "--team", "alpha", "--name", "allowed-svc"],
+            ),
+        ):
+            mock_cp.return_value = True
+            with pytest.raises(SystemExit) as exc:
+                from gitweave.cli import main
+                main()
+
+        assert exc.value.code == 0
+        mock_cp.assert_called_once_with(policy, "alpha", "new-repo", repo_name="allowed-svc")
+
+    def test_new_repo_real_path_policy_violation_exits_nonzero(self, capsys, monkeypatch):
+        """CLI exits non-zero and names the policy rule when check_permission denies."""
+        monkeypatch.setenv("GW_ORG", _GW_ORG)
+        gh_org = _make_gh_org_mock()
+        # Policy that forbids the name pattern
+        policy = {
+            "teams": [
+                {
+                    "slug": "alpha",
+                    "allowed_request_types": ["new-repo"],
+                    "allowed_repo_patterns": ["allowed-*"],
+                }
+            ]
+        }
+
+        with (
+            patch("gitweave.cli.get_caller_token", return_value="tok"),
+            patch("gitweave.cli.get_github_client", _gh_client_factory(gh_org)),
+            patch("gitweave.cli.resolve_caller_login", return_value="alice"),
+            patch("gitweave.cli.PolicyLoader", _policy_loader_factory(policy)),
+            patch(
+                "sys.argv",
+                ["gw", "self-serve", "new-repo", "--team", "alpha", "--name", "forbidden-repo"],
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc:
+                from gitweave.cli import main
+                main()
+
+        assert exc.value.code != 0
+        captured = capsys.readouterr()
+        # check_permission raises PolicyDenied naming allowed_repo_patterns
+        assert any(kw in captured.err for kw in ("allowed_repo_patterns", "pattern", "policy"))
+
+    def test_team_not_in_policy_exits_nonzero(self, capsys, monkeypatch):
+        """CLI exits non-zero when the team has no entry in policy."""
+        monkeypatch.setenv("GW_ORG", _GW_ORG)
+        gh_org = _make_gh_org_mock()
+        policy = {"teams": []}  # no teams declared
+
+        with (
+            patch("gitweave.cli.get_caller_token", return_value="tok"),
+            patch("gitweave.cli.get_github_client", _gh_client_factory(gh_org)),
+            patch("gitweave.cli.resolve_caller_login", return_value="alice"),
+            patch("gitweave.cli.PolicyLoader", _policy_loader_factory(policy)),
+            patch(
+                "sys.argv",
+                ["gw", "self-serve", "new-repo", "--team", "unknown-team", "--name", "r"],
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc:
+                from gitweave.cli import main
+                main()
+
+        assert exc.value.code != 0
+        captured = capsys.readouterr()
+        assert "unknown-team" in captured.err

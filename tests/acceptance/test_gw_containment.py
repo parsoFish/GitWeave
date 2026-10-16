@@ -24,16 +24,6 @@ _REQUIRED_VARS = (
     "GW_RESOURCE_PREFIX",
 )
 
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
-)
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
-
-
 def _resource_marker() -> str:
     """Return GW_RESOURCE_PREFIX — the ownership marker gw uses."""
     return os.environ["GW_RESOURCE_PREFIX"]
@@ -85,9 +75,17 @@ def _unmarked(names: frozenset[str], marker: str) -> frozenset[str]:
     return frozenset(n for n in names if not n.startswith(marker))
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestContainment(unittest.TestCase):
     """Live acceptance: gw apply+reset must not touch resources without the marker."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     def test_unmarked_resources_unchanged_after_apply_and_reset(self):
         """AC1: unmarked teams/repos/rulesets survive gw apply then gw reset."""

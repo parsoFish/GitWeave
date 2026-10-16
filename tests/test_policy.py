@@ -170,3 +170,44 @@ class TestCheckPermission:
             )
         msg = str(exc_info.value)
         assert "allowed_repo_patterns" in msg or "forge-*" in msg
+
+
+# ---------------------------------------------------------------------------
+# AC6 — jsonschema declared in requirements.txt + pyproject.toml; validation runs
+# ---------------------------------------------------------------------------
+
+
+class TestJsonschemaSchemaValidation:
+    """AC6: jsonschema is available and actually rejects a schema-invalid policy."""
+
+    def test_jsonschema_importable(self) -> None:
+        """jsonschema can be imported (declared in requirements.txt + pyproject.toml)."""
+        import jsonschema  # noqa: F401 — presence is the assertion
+
+    def test_schema_invalid_policy_rejected_by_jsonschema(self, tmp_path: Path) -> None:
+        """A policy with wrong structure is rejected by jsonschema, not by the fallback."""
+        # 'teams' must be a list; passing a string triggers a ValidationError.
+        bad_policy = "teams: this-should-be-a-list\n"
+        policy_file = tmp_path / "policy.yaml"
+        policy_file.write_text(bad_policy)
+
+        from gitweave.policy import PolicyError, PolicyLoader
+
+        with pytest.raises(PolicyError, match="schema validation failed"):
+            PolicyLoader(policy_file).load()
+
+    def test_valid_policy_passes_jsonschema(self, tmp_path: Path) -> None:
+        """A well-formed policy loads without error."""
+        good_policy = textwrap.dedent("""\
+            teams:
+              - slug: platform
+                allowed_request_types:
+                  - new-repo
+        """)
+        policy_file = tmp_path / "policy.yaml"
+        policy_file.write_text(good_policy)
+
+        from gitweave.policy import PolicyLoader
+
+        data = PolicyLoader(policy_file).load()
+        assert data["teams"][0]["slug"] == "platform"

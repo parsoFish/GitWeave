@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from github import GithubException
 
-from gitweave.policy import PolicyDenied
+from gitweave.policy import PolicyDenied, check_permission
 
 
 def self_serve_new_repo(
@@ -23,32 +23,9 @@ def self_serve_new_repo(
     Raises PolicyDenied if the request violates policy.
     Never opens a PR or branch on the control repository.
     """
-    # Find team entry in policy
-    teams = policy.get("teams", [])
-    team_policy = next((t for t in teams if t["slug"] == team), None)
-
-    if team_policy is None:
-        raise PolicyDenied(
-            f"Team '{team}' has no declared permissions in policy; request denied."
-        )
-
-    # Check action is allowed
-    if "new-repo" not in team_policy.get("allowed_request_types", []):
-        raise PolicyDenied(
-            f"Team '{team}' is not permitted to create new repositories."
-        )
-
-    # Validate name against allowed patterns
-    import fnmatch
-
-    patterns = team_policy.get("allowed_repo_patterns", [])
-    if patterns:
-        matched = any(fnmatch.fnmatch(name, p) for p in patterns)
-        if not matched:
-            raise PolicyDenied(
-                f"Repo name '{name}' does not match any allowed_repo_patterns "
-                f"for team '{team}': {patterns}"
-            )
+    # Delegates all permission checks (team existence, request type,
+    # repo-name pattern) to the centralised check_permission gate.
+    check_permission(policy, team, "new-repo", repo_name=name)
 
     # Create the repo (idempotent: treat 422 "already exists" as success)
     try:

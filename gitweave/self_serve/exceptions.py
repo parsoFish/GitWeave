@@ -4,7 +4,7 @@ Uses org-level custom property definitions to record exceptions on repos.
 """
 from __future__ import annotations
 
-from gitweave.policy import PolicyDenied
+from gitweave.policy import PolicyDenied, check_permission
 
 EXCEPTION_PROPERTY_NAME = "gw-policy-exception"
 
@@ -25,21 +25,12 @@ def self_serve_add_exception(
     Returns {"applied": True, "property": EXCEPTION_PROPERTY_NAME}.
     Never opens a PR on the control repository.
     """
-    # Find team entry
+    check_permission(policy, team, "policy-exception")
+
+    # Validate the specific exception type against the team's declared list.
     teams = policy.get("teams", [])
     team_policy = next((t for t in teams if t["slug"] == team), None)
-
-    if team_policy is None:
-        raise PolicyDenied(
-            f"Team '{team}' has no declared permissions in policy; request denied."
-        )
-
-    if "policy-exception" not in team_policy.get("allowed_request_types", []):
-        raise PolicyDenied(
-            f"Team '{team}' is not permitted to use 'policy-exception' request type."
-        )
-
-    allowed_exceptions = team_policy.get("allowed_exceptions", [])
+    allowed_exceptions = team_policy.get("allowed_exceptions", []) if team_policy else []
     if allowed_exceptions and exception_name not in allowed_exceptions:
         raise PolicyDenied(
             f"Exception type '{exception_name}' is not in allowed_exceptions for team '{team}': {allowed_exceptions}"

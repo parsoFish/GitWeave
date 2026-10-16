@@ -27,21 +27,13 @@ _REQUIRED_VARS = (
     "GW_APP_INSTALLATION_ID",
     "GW_ORG",
     "GW_CALLER_TOKEN",
+    "GW_RESOURCE_PREFIX",
 )
-
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_CALLER_TOKEN to be set."
-)
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
 
 
 def _resource_prefix() -> str:
-    """Return FORGE_RESOURCE_PREFIX or a safe default for acceptance runs."""
-    return os.environ.get("FORGE_RESOURCE_PREFIX", "gw-acc-")
+    """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-created resources."""
+    return os.environ["GW_RESOURCE_PREFIX"]
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
@@ -74,9 +66,17 @@ def _delete_repo_if_exists(gh_org, repo_name: str) -> None:
         pass
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestSelfServeAcceptance(unittest.TestCase):
     """Live acceptance tests for gw self-serve subcommands."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set all of GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_CALLER_TOKEN, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     # ------------------------------------------------------------------
     # AC1: new-repo within policy

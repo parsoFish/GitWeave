@@ -8,26 +8,7 @@ from __future__ import annotations
 from github import GithubException
 
 from gitweave.auth import get_github_client
-from gitweave.policy import PolicyDenied
-
-
-def _require_team_policy(team: str, policy: dict) -> dict:
-    """Return the team's policy entry or raise PolicyDenied."""
-    teams = policy.get("teams", [])
-    team_policy = next((t for t in teams if t["slug"] == team), None)
-    if team_policy is None:
-        raise PolicyDenied(
-            f"Team '{team}' has no declared permissions in policy; request denied."
-        )
-    return team_policy
-
-
-def _require_permission(team: str, team_policy: dict, permission: str) -> None:
-    """Raise PolicyDenied if *permission* is not in team's allowed_request_types."""
-    if permission not in team_policy.get("allowed_request_types", []):
-        raise PolicyDenied(
-            f"Team '{team}' is not permitted to manage team membership."
-        )
+from gitweave.policy import PolicyDenied, check_permission
 
 
 def _require_caller_is_member(gh_team, caller_login: str, team: str) -> None:
@@ -68,8 +49,7 @@ def self_serve_add_member(
     *gh* is the root Github client used to resolve *member_login* to a NamedUser.
     When omitted the App-token client is obtained via ``get_github_client()``.
     """
-    team_policy = _require_team_policy(team, policy)
-    _require_permission(team, team_policy, "team-membership")
+    check_permission(policy, team, "team-membership")
 
     gh_team = gh_org.get_team_by_slug(team)
     _require_caller_is_member(gh_team, caller_login, team)
@@ -97,8 +77,7 @@ def self_serve_remove_member(
     *gh* is the root Github client used to resolve *member_login* to a NamedUser.
     When omitted the App-token client is obtained via ``get_github_client()``.
     """
-    team_policy = _require_team_policy(team, policy)
-    _require_permission(team, team_policy, "team-membership")
+    check_permission(policy, team, "team-membership")
 
     gh_team = gh_org.get_team_by_slug(team)
     _require_caller_is_member(gh_team, caller_login, team)
