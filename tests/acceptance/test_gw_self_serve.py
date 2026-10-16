@@ -72,7 +72,7 @@ class TestSelfServeAcceptance(unittest.TestCase):
     def setUp(self):
         missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
         if missing:
-            self.skipTest(
+            self.fail(
                 f"Required env vars not set: {', '.join(missing)}. "
                 "Set all of GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
                 "GW_ORG, GW_CALLER_TOKEN, GW_RESOURCE_PREFIX before running acceptance tests."
