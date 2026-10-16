@@ -10,7 +10,7 @@ from gitweave.apply import apply
 from gitweave.reset import reset
 from gitweave.auth import get_github_client, get_caller_token, resolve_caller_login
 from gitweave.auth import CallerTokenRequiredError
-from gitweave.policy import PolicyLoader, PolicyDenied
+from gitweave.policy import PolicyLoader, PolicyDenied, PolicyError
 from gitweave.self_serve.new_repo import self_serve_new_repo
 from gitweave.self_serve.update_content import self_serve_update_content
 from gitweave.self_serve.membership import self_serve_add_member, self_serve_remove_member
@@ -115,7 +115,7 @@ def cmd_self_serve_new_repo(args):
     except CallerTokenRequiredError as e:
         print(f"caller-token-required: {e}", file=sys.stderr)
         sys.exit(1)
-    except PolicyDenied as e:
+    except PolicyError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
@@ -132,7 +132,7 @@ def cmd_self_serve_update_content(args):
     except CallerTokenRequiredError as e:
         print(f"caller-token-required: {e}", file=sys.stderr)
         sys.exit(1)
-    except PolicyDenied as e:
+    except PolicyError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
@@ -146,7 +146,21 @@ def cmd_self_serve_add_member(args):
     except CallerTokenRequiredError as e:
         print(f"caller-token-required: {e}", file=sys.stderr)
         sys.exit(1)
-    except PolicyDenied as e:
+    except PolicyError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_self_serve_remove_member(args):
+    try:
+        gh_org, policy, caller_login = _self_serve_auth()
+        result = self_serve_remove_member(args.team, args.member, gh_org, policy, caller_login)
+        print(json.dumps(result))
+        sys.exit(0)
+    except CallerTokenRequiredError as e:
+        print(f"caller-token-required: {e}", file=sys.stderr)
+        sys.exit(1)
+    except PolicyError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
@@ -162,7 +176,7 @@ def cmd_self_serve_add_exception(args):
     except CallerTokenRequiredError as e:
         print(f"caller-token-required: {e}", file=sys.stderr)
         sys.exit(1)
-    except PolicyDenied as e:
+    except PolicyError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
@@ -176,7 +190,7 @@ def cmd_self_serve_list_exceptions(args):
     except CallerTokenRequiredError as e:
         print(f"caller-token-required: {e}", file=sys.stderr)
         sys.exit(1)
-    except PolicyDenied as e:
+    except PolicyError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
@@ -228,6 +242,11 @@ def main():
     p_am.add_argument("--team", required=True, metavar="SLUG")
     p_am.add_argument("--member", required=True, metavar="LOGIN")
     p_am.set_defaults(func=cmd_self_serve_add_member)
+
+    p_rm = ss_sub.add_parser("remove-member", help="Remove a member from a team")
+    p_rm.add_argument("--team", required=True, metavar="SLUG")
+    p_rm.add_argument("--member", required=True, metavar="LOGIN")
+    p_rm.set_defaults(func=cmd_self_serve_remove_member)
 
     p_ae = ss_sub.add_parser("add-exception", help="Record a policy exception on a repo")
     p_ae.add_argument("--team", required=True, metavar="SLUG")
