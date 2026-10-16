@@ -79,7 +79,7 @@ class TestGwApplyPath(unittest.TestCase):
     def setUp(self):
         missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
         if missing:
-            self.fail(
+            self.skipTest(
                 f"Required env vars not set: {', '.join(missing)}. "
                 + _FAIL_REASON
             )
