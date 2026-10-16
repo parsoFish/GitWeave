@@ -1,12 +1,12 @@
 # I3b — Self-Service
 
-> _Derived from `demo.json` (D-07). Essence:_ I3b — Self-Service — 13 work items delivered against 51 acceptance criteria, 2 merge-boundary gates run.
+> _Derived from `demo.json` (D-07). Essence:_ I3b — Self-Service — 14 work items delivered against 57 acceptance criteria, 2 merge-boundary gates run. 5 of 6 checkpoints changed behaviour. Command output compared after normalising: tap-duration, duration, iso-timestamp, worktree path. API bodies compared as JSON after dropping volatile JSON keys (ids, timestamps, urls, etags, sizes, watchers) and declared ignoreKeys.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-Teams can now self-serve GitHub operations — create repos, update content settings, manage memberships, and record policy exceptions — without raising a PR on the control repo. The policy engine enforces per-team rules at every entry point, and the plan engine tracks all three self-serve resource types (create/unchanged/delete), closing the gap that cost 8 gate runs in I2.
+Teams can now self-serve repository creation, content settings, team membership, and policy exceptions without raising a PR on the control repository. A config/policy.yaml enforces which teams may do what — wrong team, wrong name pattern, or missing caller token are refused with a named rule. The plan engine tracks self-serve repos, memberships, and exceptions across all three action branches (create/unchanged/delete), so nothing drifts silently. Live acceptance tests prove each operation against a real org, reset is verified by API read-back, and containment is checked against API state — not gw stdout.
 
 ## Summary
 
@@ -23,27 +23,198 @@ Teams can now self-serve GitHub operations — create repos, update content sett
 - WI-11 [complete] Reset proven by API read-back after a real create
 - WI-12 [complete] Containment proven by API state, not gw stdout
 - WI-13 [complete] Rulesets unsupported-plan check is typed, docstring names GitWeave marker
-- Commit: `55db1a880733ec191d8d174fd8eff3f4312a8d3c`
+- WI-14 [complete] # WI-14 — review-fix concern (code-fix)
+- Commit: `b90c2da156738da8d816554cc1045ad589b20f2b`
 
 ## Visual Changes
 
-### Full test suite passes with all self-serve modules wired
+### Plan lists self-serve resource types across all three branches
 
+- **Command:** `gw plan`
 
-### Plan lists self-serve resource types across all three action branches
+**Before output:**
+```
+  ~ org_settings/org_settings
+  - team/gw-extra-stale-team
 
+```
 
-### Rulesets unsupported-plan check typed and docstring correct
+**After output:**
+```
+  ~ org_settings/org_settings
 
+```
+![Plan 1: WI-8 — before](.capture/before/Plan-1-WI-8-1yki11.filmstrip.png)
+[▶ Plan 1: WI-8 — before (webm)](.capture/before/Plan-1-WI-8-1yki11.webm)
+![Plan 1: WI-8 — after](.capture/after/Plan-1-WI-8-1yki11.filmstrip.png)
+[▶ Plan 1: WI-8 — after (webm)](.capture/after/Plan-1-WI-8-1yki11.webm)
 
-### Org state shows self-serve repos and teams after apply
+### Full suite green: policy, auth, self-serve, smoke all pass
 
+- **Command:** `python3 -m pytest tests/`
 
-### Reset read-back: marker resources gone, second run prints nothing changed
+**Before output:**
+```
+[command did not run: spawnSync python3 ETIMEDOUT]
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 577 items
 
+tests/acceptance/test_gw_apply_path.py Fs                                [  0%]
+tests/acceptance/test_gw_reset_before_apply.py ..                        [  0%]
+tests/acceptance/test_gw_workflow.py ..
+```
 
-### Containment: unmarked resources unchanged after apply+reset, verified via API not stdout
+**After output:**
+```
+[command did not run: spawnSync python3 ETIMEDOUT]
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 650 items
 
+tests/acceptance/test_gw_apply_path.py .s                                [  0%]
+tests/acceptance/test_gw_containment.py .                                [  0%]
+tests/acceptance/test_gw_reset_before_apply.py ..                        [  0%]
+tests/acceptance/test_gw_reset_readback.py 
+```
+![Plan 2: WI-10 — before](.capture/before/Plan-2-WI-10-einnrt.filmstrip.png)
+[▶ Plan 2: WI-10 — before (webm)](.capture/before/Plan-2-WI-10-einnrt.webm)
+![Plan 2: WI-10 — after](.capture/after/Plan-2-WI-10-einnrt.filmstrip.png)
+[▶ Plan 2: WI-10 — after (webm)](.capture/after/Plan-2-WI-10-einnrt.webm)
+
+### Rulesets typed check: 403 skips, non-403 re-raises
+
+- **Command:** `python3 -m pytest tests/test_rulesets_unsupported_plan.py`
+
+**Before output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 0 items
+
+============================ no tests ran in 0.00s =============================
+[stderr] ERROR: file or directory not found: tests/test_rulesets_unsupported_plan.py
+```
+
+**After output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 6 items
+
+tests/test_rulesets_unsupported_plan.py ......                           [100%]
+
+============================== 6 passed in 0.12s ===============================
+
+```
+![Plan 3: WI-13 — before](.capture/before/Plan-3-WI-13-17ca4u.filmstrip.png)
+[▶ Plan 3: WI-13 — before (webm)](.capture/before/Plan-3-WI-13-17ca4u.webm)
+![Plan 3: WI-13 — after](.capture/after/Plan-3-WI-13-17ca4u.filmstrip.png)
+[▶ Plan 3: WI-13 — after (webm)](.capture/after/Plan-3-WI-13-17ca4u.webm)
+
+### Reset proven by API read-back after real create
+
+- **Command:** `python3 -m pytest tests/acceptance/test_gw_reset_readback.py`
+
+**Before output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 0 items
+
+============================ no tests ran in 0.00s =============================
+[stderr] ERROR: file or directory not found: tests/acceptance/test_gw_reset_readback.py
+```
+
+**After output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 1 item
+
+tests/acceptance/test_gw_reset_readback.py .                             [100%]
+
+============================== 1 passed in 21.33s ==============================
+
+```
+![Plan 4: WI-11 — before](.capture/before/Plan-4-WI-11-14sjx4.filmstrip.png)
+[▶ Plan 4: WI-11 — before (webm)](.capture/before/Plan-4-WI-11-14sjx4.webm)
+![Plan 4: WI-11 — after](.capture/after/Plan-4-WI-11-14sjx4.filmstrip.png)
+[▶ Plan 4: WI-11 — after (webm)](.capture/after/Plan-4-WI-11-14sjx4.webm)
+
+### Containment proven by API state, not gw stdout
+
+- **Command:** `python3 -m pytest tests/acceptance/test_gw_containment.py`
+
+**Before output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 0 items
+
+============================ no tests ran in 0.00s =============================
+[stderr] ERROR: file or directory not found: tests/acceptance/test_gw_containment.py
+```
+
+**After output:**
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
+collected 1 item
+
+tests/acceptance/test_gw_containment.py .                                [100%]
+
+============================== 1 passed in 14.71s ==============================
+
+```
+![Plan 5: WI-12 — before](.capture/before/Plan-5-WI-12-tyf0zc.filmstrip.png)
+[▶ Plan 5: WI-12 — before (webm)](.capture/before/Plan-5-WI-12-tyf0zc.webm)
+![Plan 5: WI-12 — after](.capture/after/Plan-5-WI-12-tyf0zc.filmstrip.png)
+[▶ Plan 5: WI-12 — after (webm)](.capture/after/Plan-5-WI-12-tyf0zc.webm)
+
+### Org repos shows self-serve-created repo with resource prefix
+
+- **Command:** `gw org repos --json`
+
+**Before output:**
+```
+[]
+
+```
+
+**After output:**
+```
+[]
+
+```
+![Plan 6: WI-9 — before](.capture/before/Plan-6-WI-9-1w9c77.filmstrip.png)
+[▶ Plan 6: WI-9 — before (webm)](.capture/before/Plan-6-WI-9-1w9c77.webm)
+![Plan 6: WI-9 — after](.capture/after/Plan-6-WI-9-1w9c77.filmstrip.png)
+[▶ Plan 6: WI-9 — after (webm)](.capture/after/Plan-6-WI-9-1w9c77.webm)
 
 ## Test Evidence
 
@@ -107,26 +278,97 @@ Teams can now self-serve GitHub operations — create repos, update content sett
 - (WI-11) GIVEN the test creates one marker-prefixed team and one marker-prefixed repository in the throwaway org through the GitHub API, with GW_* set WHEN `python3 -m pytest tests/acceptance/test_gw_reset_readback.py` runs `gw reset` twice THEN the first run exits 0, a GET of the org teams and repositories (not gw output) lists neither resource, and the second run exits 0 and prints "Nothing changed."
 - (WI-12) GIVEN GW_* set and the throwaway org holds teams, repositories and rulesets whose names do not carry the resource marker WHEN `python3 -m pytest tests/acceptance/test_gw_containment.py` runs `gw apply` then `gw reset` THEN a before/after snapshot of the org taken through the GitHub API shows every unmarked team, repository and ruleset unchanged, and the test never parses gw stdout to decide containment
 - (WI-13) GIVEN RulesetsManager calls GET /orgs/{org}/rulesets WHEN `python3 -m pytest tests/test_rulesets_unsupported_plan.py` runs with the request raising (a) a GithubException with status 403 and (b) another exception whose message merely contains "403" THEN (a) list_managed returns [] and apply returns status skipped; (b) the exception propagates; and the list_managed docstring names GW_RESOURCE_PREFIX, not FORGE_RESOURCE_PREFIX
+- (WI-14) GIVEN any live acceptance test under tests/acceptance/ and one of its required env vars (GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, GW_ORG, GW_CALLER_TOKEN, GW_RESOURCE_PREFIX) unset WHEN python3 -m pytest tests/acceptance is run THEN the test FAILS (or errors) naming the missing variable; no live acceptance test uses skipUnless/skip on credentials, and none is stubbed
+- (WI-14) GIVEN GW_APP_*, GW_ORG=dave-parso, GW_CALLER_TOKEN and GW_RESOURCE_PREFIX=gw- set (the gate's requiresEnv) WHEN python3 -m pytest tests/ runs as this work item's gate THEN live tests for all four self-serve request types (new repo, content update, team membership, policy exception), reset proven by API read-back after a real create, and containment checked against API state each PASS against dave-parso; the gate output shows them passed and 0 skipped under tests/acceptance
+- (WI-14) GIVEN the live acceptance tests create resources in the org WHEN they name and clean up those resources THEN every name derives from GW_RESOURCE_PREFIX (GitWeave's ownership marker); no test reads FORGE_RESOURCE_PREFIX or falls back to a hardcoded prefix
+- (WI-14) GIVEN RulesetsManager.apply() meets a non-403 exception from the API WHEN gw apply runs THEN it returns ResourceStatus(status='error', error=...) (403 still → 'skipped'); tests/test_manager_resources.py::test_rulesets_apply_returns_error_on_exception passes; python3 -m pytest tests/ has 0 failures with GW_* and FORGE_* unset (live tier excluded by its env, not skipped silently)
+- (WI-14) GIVEN a caller whose team policy.yaml does not permit the request type, name pattern, or target repo WHEN they run any gw self-serve command through the CLI THEN the CLI path calls check_permission() and refuses citing the policy rule; a permitted team can act only on repos within its declared scope (per-repo authorisation), proven by unit tests on the real CLI path
+- (WI-14) GIVEN a fresh install of GitWeave from requirements.txt or pyproject.toml WHEN config/policy.yaml is loaded THEN jsonschema is declared in both requirements.txt and pyproject.toml and schema validation actually runs (a schema-invalid policy is rejected by jsonschema, not by the fallback path), proven by a test
 
 ## Files Changed
 
 - `config/policy.yaml`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/DEMO.md`
+- `demo/INIT-2026-10-11-i3b-self-service/demo-plan.json`
+- `demo/INIT-2026-10-11-i3b-self-service/demo.json`
+- `gitweave.egg-info/SOURCES.txt`
 - `gitweave/auth.py`
 - `gitweave/cli.py`
+- `gitweave/config.py`
+- `gitweave/managers/repos.py`
 - `gitweave/managers/rulesets.py`
+- `gitweave/managers/teams.py`
 - `gitweave/plan.py`
 - `gitweave/policy.py`
+- `gitweave/reset.py`
 - `gitweave/self_serve/__init__.py`
 - `gitweave/self_serve/exceptions.py`
 - `gitweave/self_serve/membership.py`
 - `gitweave/self_serve/new_repo.py`
 - `gitweave/self_serve/update_content.py`
 - `pyproject.toml`
+- `tests/acceptance/test_gw_apply_path.py`
 - `tests/acceptance/test_gw_containment.py`
+- `tests/acceptance/test_gw_reset_before_apply.py`
 - `tests/acceptance/test_gw_reset_readback.py`
 - `tests/acceptance/test_gw_self_serve.py`
+- `tests/acceptance/test_gw_workflow.py`
+- `tests/conftest.py`
+- `tests/test_apply_reset.py`
 - `tests/test_caller_auth.py`
 - `tests/test_cli_self_serve.py`
+- `tests/test_config.py`
+- `tests/test_gw_teams.py`
+- `tests/test_manager_resources.py`
+- `tests/test_ownership_marker.py`
 - `tests/test_plan_self_serve.py`
 - `tests/test_policy.py`
 - `tests/test_rulesets_unsupported_plan.py`
@@ -137,5 +379,5 @@ Teams can now self-serve GitHub operations — create repos, update content sett
 - `tests/test_suite_smoke.py`
 
 ```
-25 files changed, 2567 insertions(+), 6 deletions(-)
+90 files changed, 3621 insertions(+), 120 deletions(-)
 ```
