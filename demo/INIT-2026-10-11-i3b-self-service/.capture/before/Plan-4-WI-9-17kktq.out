@@ -1,6 +1,0 @@
-{
-  "description": "",
-  "default_repository_permission": "read",
-  "web_commit_signoff_required": false,
-  "members_can_create_repositories": true
-}
