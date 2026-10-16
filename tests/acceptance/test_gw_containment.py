@@ -3,7 +3,7 @@
 REQUIRES: GW_ORG, GW_APP_ID, GW_APP_INSTALLATION_ID, GW_APP_PRIVATE_KEY_PATH,
           GW_RESOURCE_PREFIX all set in the environment.
 
-Skips when any of those variables is missing.
+Fails (not skips) when any of those variables is missing — AC1.
 
 Test map (1:1 with ACs):
   1. test_unmarked_resources_unchanged_after_apply_and_reset  — AC1
@@ -81,7 +81,7 @@ class TestContainment(unittest.TestCase):
     def setUp(self):
         missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
         if missing:
-            self.skipTest(
+            self.fail(
                 f"Required env vars not set: {', '.join(missing)}. "
                 "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
                 "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
