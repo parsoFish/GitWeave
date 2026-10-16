@@ -1,12 +1,12 @@
 # I3b — Self-Service
 
-> _Derived from `demo.json` (D-07). Essence:_ I3b — Self-Service — 14 work items delivered against 57 acceptance criteria, 2 merge-boundary gates run. 5 of 6 checkpoints changed behaviour. Command output compared after normalising: tap-duration, duration, iso-timestamp, worktree path. API bodies compared as JSON after dropping volatile JSON keys (ids, timestamps, urls, etags, sizes, watchers) and declared ignoreKeys.
+> _Derived from `demo.json` (D-07). Essence:_ I3b — Self-Service — 15 work items delivered against 65 acceptance criteria, 2 merge-boundary gates run. 4 of 5 checkpoints changed behaviour. Command output compared after normalising: tap-duration, duration, iso-timestamp, worktree path.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-Teams can now self-serve repository creation, content settings, team membership, and policy exceptions without raising a PR on the control repository. A config/policy.yaml enforces which teams may do what — wrong team, wrong name pattern, or missing caller token are refused with a named rule. The plan engine tracks self-serve repos, memberships, and exceptions across all three action branches (create/unchanged/delete), so nothing drifts silently. Live acceptance tests prove each operation against a real org, reset is verified by API read-back, and containment is checked against API state — not gw stdout.
+A team member can now act as their own admin — running `gw self-serve new-repo`, `update-content`, `add-member`, or `add-exception` without a platform engineer. A YAML policy file governs every request by team identity, naming pattern, and allowed setting type, failing closed on absent lists. The plan engine tracks self-serve repos, exceptions, and memberships through all three state branches (create / unchanged / delete), closing the I2 regression. Acceptance tests now fail fast on missing credentials instead of skipping silently, and containment and reset are proven against live API state, not CLI output.
 
 ## Summary
 
@@ -24,18 +24,18 @@ Teams can now self-serve repository creation, content settings, team membership,
 - WI-12 [complete] Containment proven by API state, not gw stdout
 - WI-13 [complete] Rulesets unsupported-plan check is typed, docstring names GitWeave marker
 - WI-14 [complete] # WI-14 — review-fix concern (code-fix)
-- Commit: `b90c2da156738da8d816554cc1045ad589b20f2b`
+- WI-15 [complete] # WI-15 — review-fix concern (code-fix)
+- Commit: `104b99be0e32f4dd733f74e11a686214725233b0`
 
 ## Visual Changes
 
-### Plan lists self-serve resource types across all three branches
+### Plan output gains self-serve resource types with all three action branches
 
 - **Command:** `gw plan`
 
 **Before output:**
 ```
   ~ org_settings/org_settings
-  - team/gw-extra-stale-team
 
 ```
 
@@ -49,7 +49,7 @@ Teams can now self-serve repository creation, content settings, team membership,
 ![Plan 1: WI-8 — after](.capture/after/Plan-1-WI-8-1yki11.filmstrip.png)
 [▶ Plan 1: WI-8 — after (webm)](.capture/after/Plan-1-WI-8-1yki11.webm)
 
-### Full suite green: policy, auth, self-serve, smoke all pass
+### Full offline test suite passes with 0 failures
 
 - **Command:** `python3 -m pytest tests/`
 
@@ -76,9 +76,9 @@ platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
 rootdir: <worktree>
 configfile: pyproject.toml
 plugins: black-0.6.0, cov-7.0.0, anyio-4.12.1, mypy-1.0.1
-collected 650 items
+collected 694 items
 
-tests/acceptance/test_gw_apply_path.py .s                                [  0%]
+tests/acceptance/test_gw_apply_path.py .                                 [  0%]
 tests/acceptance/test_gw_containment.py .                                [  0%]
 tests/acceptance/test_gw_reset_before_apply.py ..                        [  0%]
 tests/acceptance/test_gw_reset_readback.py 
@@ -88,7 +88,7 @@ tests/acceptance/test_gw_reset_readback.py
 ![Plan 2: WI-10 — after](.capture/after/Plan-2-WI-10-einnrt.filmstrip.png)
 [▶ Plan 2: WI-10 — after (webm)](.capture/after/Plan-2-WI-10-einnrt.webm)
 
-### Rulesets typed check: 403 skips, non-403 re-raises
+### Rulesets unsupported-plan typed check passes
 
 - **Command:** `python3 -m pytest tests/test_rulesets_unsupported_plan.py`
 
@@ -116,7 +116,7 @@ collected 6 items
 
 tests/test_rulesets_unsupported_plan.py ......                           [100%]
 
-============================== 6 passed in 0.12s ===============================
+============================== 6 passed in 0.13s ===============================
 
 ```
 ![Plan 3: WI-13 — before](.capture/before/Plan-3-WI-13-17ca4u.filmstrip.png)
@@ -124,7 +124,7 @@ tests/test_rulesets_unsupported_plan.py ......                           [100%]
 ![Plan 3: WI-13 — after](.capture/after/Plan-3-WI-13-17ca4u.filmstrip.png)
 [▶ Plan 3: WI-13 — after (webm)](.capture/after/Plan-3-WI-13-17ca4u.webm)
 
-### Reset proven by API read-back after real create
+### Reset proven by API read-back after a real create
 
 - **Command:** `python3 -m pytest tests/acceptance/test_gw_reset_readback.py`
 
@@ -152,7 +152,7 @@ collected 1 item
 
 tests/acceptance/test_gw_reset_readback.py .                             [100%]
 
-============================== 1 passed in 21.33s ==============================
+============================== 1 passed in 21.11s ==============================
 
 ```
 ![Plan 4: WI-11 — before](.capture/before/Plan-4-WI-11-14sjx4.filmstrip.png)
@@ -160,7 +160,7 @@ tests/acceptance/test_gw_reset_readback.py .                             [100%]
 ![Plan 4: WI-11 — after](.capture/after/Plan-4-WI-11-14sjx4.filmstrip.png)
 [▶ Plan 4: WI-11 — after (webm)](.capture/after/Plan-4-WI-11-14sjx4.webm)
 
-### Containment proven by API state, not gw stdout
+### Containment proven by API state after apply and reset
 
 - **Command:** `python3 -m pytest tests/acceptance/test_gw_containment.py`
 
@@ -188,33 +188,13 @@ collected 1 item
 
 tests/acceptance/test_gw_containment.py .                                [100%]
 
-============================== 1 passed in 14.71s ==============================
+============================== 1 passed in 14.70s ==============================
 
 ```
 ![Plan 5: WI-12 — before](.capture/before/Plan-5-WI-12-tyf0zc.filmstrip.png)
 [▶ Plan 5: WI-12 — before (webm)](.capture/before/Plan-5-WI-12-tyf0zc.webm)
 ![Plan 5: WI-12 — after](.capture/after/Plan-5-WI-12-tyf0zc.filmstrip.png)
 [▶ Plan 5: WI-12 — after (webm)](.capture/after/Plan-5-WI-12-tyf0zc.webm)
-
-### Org repos shows self-serve-created repo with resource prefix
-
-- **Command:** `gw org repos --json`
-
-**Before output:**
-```
-[]
-
-```
-
-**After output:**
-```
-[]
-
-```
-![Plan 6: WI-9 — before](.capture/before/Plan-6-WI-9-1w9c77.filmstrip.png)
-[▶ Plan 6: WI-9 — before (webm)](.capture/before/Plan-6-WI-9-1w9c77.webm)
-![Plan 6: WI-9 — after](.capture/after/Plan-6-WI-9-1w9c77.filmstrip.png)
-[▶ Plan 6: WI-9 — after (webm)](.capture/after/Plan-6-WI-9-1w9c77.webm)
 
 ## Test Evidence
 
@@ -284,6 +264,14 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - (WI-14) GIVEN RulesetsManager.apply() meets a non-403 exception from the API WHEN gw apply runs THEN it returns ResourceStatus(status='error', error=...) (403 still → 'skipped'); tests/test_manager_resources.py::test_rulesets_apply_returns_error_on_exception passes; python3 -m pytest tests/ has 0 failures with GW_* and FORGE_* unset (live tier excluded by its env, not skipped silently)
 - (WI-14) GIVEN a caller whose team policy.yaml does not permit the request type, name pattern, or target repo WHEN they run any gw self-serve command through the CLI THEN the CLI path calls check_permission() and refuses citing the policy rule; a permitted team can act only on repos within its declared scope (per-repo authorisation), proven by unit tests on the real CLI path
 - (WI-14) GIVEN a fresh install of GitWeave from requirements.txt or pyproject.toml WHEN config/policy.yaml is loaded THEN jsonschema is declared in both requirements.txt and pyproject.toml and schema validation actually runs (a schema-invalid policy is rejected by jsonschema, not by the fallback path), proven by a test
+- (WI-15) GIVEN tests/acceptance with GW_CALLER_TOKEN unset (the other GW_* set) WHEN python3 -m pytest tests/acceptance -q THEN the run FAILS naming GW_CALLER_TOKEN; no acceptance test uses skipUnless/skipTest/pytest.mark.skip on credentials
+- (WI-15) GIVEN tests/acceptance with GW_RESOURCE_PREFIX unset (the other GW_* set) WHEN python3 -m pytest tests/acceptance -q THEN the run FAILS naming GW_RESOURCE_PREFIX
+- (WI-15) GIVEN the gitweave package and the live acceptance tests WHEN searching gitweave/ and tests/acceptance/ for FORGE_RESOURCE_PREFIX or the 'gw-acc-' fallback THEN there is no match: every created resource name derives from GW_RESOURCE_PREFIX only (FORGE_RESOURCE_PREFIX is forge's gate-isolation var, not GitWeave's ownership marker)
+- (WI-15) GIVEN a caller whose team policy.yaml does not permit the request type, name pattern or target repo WHEN python3 -m pytest tests/test_cli_check_permission.py -q THEN each gw self-serve CLI subcommand dispatch calls gitweave.policy.check_permission (asserted by spy, not by reimplemented inline checks) and the refusal message cites the denying rule; exit non-zero, nothing written to the org
+- (WI-15) GIVEN a fresh install from requirements.txt or pyproject.toml WHEN python3 -m pytest tests/test_policy_jsonschema_required.py -q THEN jsonschema is declared in both files; policy.py imports jsonschema unconditionally (no ImportError fallback / minimal validation path); a schema-invalid policy.yaml is rejected with a ValidationError-derived PolicyError
+- (WI-15) GIVEN the gw CLI WHEN python3 -m pytest tests/test_cli_remove_member.py -q THEN `gw self-serve remove-member` (or the documented subcommand name) is registered in the argparse tree and dispatches to self_serve_remove_member through check_permission
+- (WI-15) GIVEN a missing or schema-invalid team policy.yaml WHEN python3 -m pytest tests/test_cli_policy_error.py -q THEN every self-serve CLI handler catches PolicyError (not only PolicyDenied) and exits non-zero with a one-line error naming the policy file; no traceback
+- (WI-15) GIVEN a policy whose allowed_repo_patterns or allowed_exceptions is absent or empty WHEN python3 -m pytest tests/test_policy_fail_closed.py -q THEN check_permission and the allowed_exceptions guard DENY (fail closed) and name the empty list; nothing is permitted by absence
 
 ## Files Changed
 
@@ -292,6 +280,14 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-10-1kq58o.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-8-1yki11.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-8-1yki11.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-8-1yki11.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-1-WI-8-1yki11.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-10-einnrt.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-10-einnrt.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-10-einnrt.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-10-einnrt.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-2-WI-8-e7s9a6.png`
@@ -300,6 +296,10 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-3-WI-13-17ca4u.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-11-14sjx4.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-11-14sjx4.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-11-14sjx4.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-11-14sjx4.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-4-WI-9-17kktq.png`
@@ -308,14 +308,30 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-11-tyf0zb.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-12-tyf0zc.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-12-tyf0zc.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-12-tyf0zc.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-5-WI-12-tyf0zc.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-12-1ms1i1.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-9-1w9c77.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-9-1w9c77.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-9-1w9c77.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/after/Plan-6-WI-9-1w9c77.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-10-1kq58o.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-8-1yki11.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-8-1yki11.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-8-1yki11.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-1-WI-8-1yki11.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-10-einnrt.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-10-einnrt.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-10-einnrt.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-10-einnrt.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-2-WI-8-e7s9a6.png`
@@ -324,6 +340,10 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-3-WI-13-17ca4u.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-11-14sjx4.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-11-14sjx4.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-11-14sjx4.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-11-14sjx4.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-4-WI-9-17kktq.png`
@@ -332,10 +352,18 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-11-tyf0zb.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-12-tyf0zc.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-12-tyf0zc.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-12-tyf0zc.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-5-WI-12-tyf0zc.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.filmstrip.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.out`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.png`
 - `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-12-1ms1i1.webm`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-9-1w9c77.filmstrip.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-9-1w9c77.out`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-9-1w9c77.png`
+- `demo/INIT-2026-10-11-i3b-self-service/.capture/before/Plan-6-WI-9-1w9c77.webm`
 - `demo/INIT-2026-10-11-i3b-self-service/DEMO.md`
 - `demo/INIT-2026-10-11-i3b-self-service/demo-plan.json`
 - `demo/INIT-2026-10-11-i3b-self-service/demo.json`
@@ -355,6 +383,7 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `gitweave/self_serve/new_repo.py`
 - `gitweave/self_serve/update_content.py`
 - `pyproject.toml`
+- `requirements.txt`
 - `tests/acceptance/test_gw_apply_path.py`
 - `tests/acceptance/test_gw_containment.py`
 - `tests/acceptance/test_gw_reset_before_apply.py`
@@ -364,6 +393,9 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `tests/conftest.py`
 - `tests/test_apply_reset.py`
 - `tests/test_caller_auth.py`
+- `tests/test_cli_check_permission.py`
+- `tests/test_cli_policy_error.py`
+- `tests/test_cli_remove_member.py`
 - `tests/test_cli_self_serve.py`
 - `tests/test_config.py`
 - `tests/test_gw_teams.py`
@@ -371,6 +403,8 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `tests/test_ownership_marker.py`
 - `tests/test_plan_self_serve.py`
 - `tests/test_policy.py`
+- `tests/test_policy_fail_closed.py`
+- `tests/test_policy_jsonschema_required.py`
 - `tests/test_rulesets_unsupported_plan.py`
 - `tests/test_self_serve_exceptions.py`
 - `tests/test_self_serve_membership.py`
@@ -379,5 +413,5 @@ tests/acceptance/test_gw_containment.py .                                [100%]
 - `tests/test_suite_smoke.py`
 
 ```
-90 files changed, 3621 insertions(+), 120 deletions(-)
+136 files changed, 4729 insertions(+), 306 deletions(-)
 ```
