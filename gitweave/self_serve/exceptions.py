@@ -25,7 +25,7 @@ def self_serve_add_exception(
     Returns {"applied": True, "property": EXCEPTION_PROPERTY_NAME}.
     Never opens a PR on the control repository.
     """
-    check_permission(policy, team, "policy-exception")
+    check_permission(policy, team, "policy-exception", repo_name=repo_name)
 
     # Validate the specific exception type against the team's declared list.
     teams = policy.get("teams", [])
@@ -52,8 +52,17 @@ def self_serve_add_exception(
     return {"applied": True, "property": EXCEPTION_PROPERTY_NAME}
 
 
-def self_serve_list_exceptions(repo_name: str, gh_org) -> list[dict]:
-    """Return exceptions recorded on *repo_name* via the GitHub API."""
+def self_serve_list_exceptions(
+    team: str,
+    repo_name: str,
+    policy: dict,
+    gh_org,
+) -> list[dict]:
+    """Return exceptions recorded on *repo_name* via the GitHub API.
+
+    Raises PolicyDenied if the team lacks permission to view exceptions on this repo.
+    """
+    check_permission(policy, team, "policy-exception", repo_name=repo_name)
     org_login = gh_org.login
     _, data = gh_org._requester.requestJsonAndCheck(
         "GET",

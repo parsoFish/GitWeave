@@ -101,7 +101,7 @@ class TestPolicyExceptions:
                 {"property_name": "other-prop", "value": "foo"},
             ],
         )
-        result = self_serve_list_exceptions("platform-api", org)
+        result = self_serve_list_exceptions("platform", "platform-api", POLICY, org)
         assert len(result) == 1
         assert result[0]["exception_name"] == "skip-codeowners"
 

@@ -23,7 +23,7 @@ _HANDLERS = [
     ("cmd_self_serve_add_member",    {"team": "x", "member": "bob"}),
     ("cmd_self_serve_remove_member", {"team": "x", "member": "bob"}),
     ("cmd_self_serve_add_exception", {"team": "x", "repo": "x-repo", "exception": "skip", "reason": "r"}),
-    ("cmd_self_serve_list_exceptions", {"repo": "x-repo"}),
+    ("cmd_self_serve_list_exceptions", {"team": "x", "repo": "x-repo"}),
 ]
 
 

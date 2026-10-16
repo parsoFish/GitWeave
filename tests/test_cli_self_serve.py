@@ -224,7 +224,7 @@ class TestSelfServeCLI:
             ) as mock_fn,
             patch(
                 "sys.argv",
-                ["gw", "self-serve", "list-exceptions", "--repo", "my-repo"],
+                ["gw", "self-serve", "list-exceptions", "--team", "alpha", "--repo", "my-repo"],
             ),
         ):
             with pytest.raises(SystemExit) as exc:
@@ -232,7 +232,7 @@ class TestSelfServeCLI:
                 main()
 
         assert exc.value.code == 0
-        mock_fn.assert_called_once_with("my-repo", gh_org)
+        mock_fn.assert_called_once_with("alpha", "my-repo", policy, gh_org)
         captured = capsys.readouterr()
         assert json.loads(captured.out) == result_val
 

@@ -23,7 +23,7 @@ def self_serve_update_content(
     Returns {"applied": True}.
     Never opens a PR on the control repository.
     """
-    check_permission(policy, team, "content-update")
+    check_permission(policy, team, "content-update", repo_name=repo_name)
 
     # Validate the specific setting type against the team's declared list.
     teams = policy.get("teams", [])

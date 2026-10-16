@@ -17,6 +17,7 @@ POLICY = {
         {
             "slug": "platform",
             "allowed_request_types": ["content-update"],
+            "allowed_repo_patterns": ["platform-*", "*-svc", "*"],
             "allowed_content_settings": [
                 "branch_protection",
                 "topics",
@@ -28,6 +29,7 @@ POLICY = {
         {
             "slug": "data",
             "allowed_request_types": ["content-update"],
+            "allowed_repo_patterns": ["data-*", "*-svc"],
             "allowed_content_settings": ["topics"],
         },
         {

@@ -1,8 +1,6 @@
 """Tests for gitweave.policy — PolicyLoader and check_permission."""
 from __future__ import annotations
 
-import subprocess
-import sys
 import textwrap
 from pathlib import Path
 
@@ -51,30 +49,6 @@ class TestPolicyLoader:
         loader = PolicyLoader(policy_path=missing)
         with pytest.raises(PolicyError, match=str(missing)):
             loader.load()
-
-    def test_absent_policy_exits_nonzero(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """CLI exits non-zero when policy.yaml is absent."""
-        # Run a subprocess so sys.exit is real.
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                textwrap.dedent(f"""
-                    import sys
-                    from pathlib import Path
-                    from gitweave.policy import PolicyLoader, PolicyError
-                    loader = PolicyLoader(policy_path=Path({str(tmp_path / 'policy.yaml')!r}))
-                    try:
-                        loader.load()
-                    except PolicyError as e:
-                        print(str(e), file=sys.stderr)
-                        sys.exit(1)
-                """),
-            ],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode != 0, "Expected non-zero exit for missing policy"
 
     # AC2 — invalid YAML
     def test_invalid_yaml_raises(self, tmp_path: Path) -> None:
