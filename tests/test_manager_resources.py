@@ -56,18 +56,6 @@ def test_get_prefix_returns_gw_prefix_when_forge_unset(monkeypatch):
     assert _get_prefix() == "gw-test-"
 
 
-def test_get_prefix_returns_forge_prefix_when_valid(monkeypatch):
-    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "gw-test-forge-")
-    assert _get_prefix() == "gw-test-forge-"
-
-
-def test_get_prefix_returns_forge_prefix_when_independent_of_gw(monkeypatch):
-    """FORGE_RESOURCE_PREFIX takes priority regardless of whether it starts with GW."""
-    monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
-    monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "unrelated-")
-    assert _get_prefix() == "unrelated-"
-
 
 # ---------------------------------------------------------------------------
 # Instantiation raises when GW_RESOURCE_PREFIX unset / empty
