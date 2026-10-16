@@ -5,7 +5,7 @@ their team's policy permits it.
 """
 from __future__ import annotations
 
-from gitweave.policy import PolicyDenied
+from gitweave.policy import PolicyDenied, check_permission
 
 
 def self_serve_update_content(
@@ -23,20 +23,12 @@ def self_serve_update_content(
     Returns {"applied": True}.
     Never opens a PR on the control repository.
     """
+    check_permission(policy, team, "content-update")
+
+    # Validate the specific setting type against the team's declared list.
     teams = policy.get("teams", [])
     team_policy = next((t for t in teams if t["slug"] == team), None)
-
-    if team_policy is None:
-        raise PolicyDenied(
-            f"Team '{team}' has no declared permissions in policy; request denied."
-        )
-
-    if "content-update" not in team_policy.get("allowed_request_types", []):
-        raise PolicyDenied(
-            f"Team '{team}' is not permitted to perform content-update operations."
-        )
-
-    allowed_settings = team_policy.get("allowed_content_settings", [])
+    allowed_settings = team_policy.get("allowed_content_settings", []) if team_policy else []
     if setting not in allowed_settings:
         raise PolicyDenied(
             f"Setting '{setting}' is not in allowed_content_settings for team '{team}'."

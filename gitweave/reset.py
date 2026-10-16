@@ -21,11 +21,7 @@ def reset(gh_org) -> ResetResult:
     Sets nothing_changed=True when org was already clean and at defaults.
     """
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope to the initiative when set;
-    # takes full priority over GW_RESOURCE_PREFIX (they are independent namespaces).
-    # When neither is set, reset has no safe prefix to operate on.
-    if not gw_prefix and not forge_prefix:
+    if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty for reset")
 
     result = ResetResult()

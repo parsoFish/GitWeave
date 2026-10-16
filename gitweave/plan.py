@@ -67,11 +67,7 @@ def plan(fixture_path: str | None = None) -> PlanResult:
     must be set or EnvironmentError is raised.
     """
     cfg = load_config()
-    gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope to the initiative when set;
-    # takes full priority over GW_RESOURCE_PREFIX (they are independent namespaces).
-    prefix = forge_prefix if forge_prefix else gw_prefix
+    prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
 
     if fixture_path is not None:
         snapshot = _load_fixture(fixture_path)

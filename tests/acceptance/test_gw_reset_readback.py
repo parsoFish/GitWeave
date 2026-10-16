@@ -3,7 +3,7 @@
 REQUIRES: GW_ORG, GW_APP_ID, GW_APP_INSTALLATION_ID, GW_APP_PRIVATE_KEY_PATH,
           GW_RESOURCE_PREFIX all set in the environment.
 
-Skips when any of those variables is missing.
+Fails (does not skip) when any of those variables is missing.
 
 Test map (1:1 with ACs):
   1. test_reset_removes_prefixed_resources_and_is_idempotent  — AC1
@@ -23,26 +23,9 @@ _REQUIRED_VARS = (
     "GW_RESOURCE_PREFIX",
 )
 
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
-)
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
-
-
 def _effective_prefix() -> str:
-    """Return FORGE_RESOURCE_PREFIX if set, else GW_RESOURCE_PREFIX.
-
-    FORGE_RESOURCE_PREFIX and GW_RESOURCE_PREFIX are independent namespaces;
-    no sub-prefix relationship is required.
-    """
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix:
-        return forge_prefix
-    return os.environ.get("GW_RESOURCE_PREFIX", "")
+    """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-created resources."""
+    return os.environ["GW_RESOURCE_PREFIX"]
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
@@ -91,9 +74,17 @@ def _delete_repo_if_exists(gh_org, repo_name: str) -> None:
         pass
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestResetReadback(unittest.TestCase):
     """Live acceptance: gw reset deletes prefixed resources; idempotent on clean state."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     def test_reset_removes_prefixed_resources_and_is_idempotent(self):
         """AC1: create prefixed team + repo, reset twice, verify via API."""

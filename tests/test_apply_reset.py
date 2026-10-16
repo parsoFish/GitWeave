@@ -174,20 +174,9 @@ class TestReset:
     def test_reset_requires_prefix_env_var(self, monkeypatch):
         """reset() raises EnvironmentError when GW_RESOURCE_PREFIX is not set."""
         monkeypatch.delenv("GW_RESOURCE_PREFIX", raising=False)
-        monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
         org = _make_org()
         with pytest.raises(EnvironmentError, match="GW_RESOURCE_PREFIX"):
             reset(org)
-
-    def test_reset_accepts_independent_forge_prefix(self, monkeypatch):
-        """AC2: FORGE_RESOURCE_PREFIX doesn't need to start with GW_RESOURCE_PREFIX;
-        they are independent namespaces. Reset succeeds when FORGE_RESOURCE_PREFIX is set."""
-        monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-test-")
-        monkeypatch.setenv("FORGE_RESOURCE_PREFIX", "totally-different-")
-        org = _make_org()
-        # Should not raise — independent prefix is accepted
-        result = reset(org)
-        assert result is not None
 
     def test_reset_verified_by_api_readback(self, monkeypatch):
         """AC3: After reset(), a read-back GET shows no GitWeave-marked resource remains.

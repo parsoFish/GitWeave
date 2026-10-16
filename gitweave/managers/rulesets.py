@@ -1,7 +1,6 @@
 """RulesetsManager — create/delete GitHub org rulesets under GW_RESOURCE_PREFIX.
 
-GW_RESOURCE_PREFIX is the primary ownership marker.  FORGE_RESOURCE_PREFIX is
-optional; when set it takes priority (independent namespace — no sub-prefix requirement).
+GW_RESOURCE_PREFIX is the ownership marker for all gitweave-managed resources.
 
 PyGithub does not expose a high-level ruleset API, so we call the GitHub REST
 API directly via the org's requester object (org._requester) or a plain requests
@@ -14,16 +13,11 @@ from gitweave.managers.org import ResourceStatus
 
 
 def _get_prefix() -> str:
-    """Return the effective resource prefix.
-
-    Uses GW_RESOURCE_PREFIX as primary.  FORGE_RESOURCE_PREFIX, if set, takes
-    priority (initiative-scoped prefix; independent namespace).
-    """
+    """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-managed resources."""
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    return forge_prefix if forge_prefix else gw_prefix
+    return gw_prefix
 
 
 def _is_managed(name: str, prefix: str) -> bool:
