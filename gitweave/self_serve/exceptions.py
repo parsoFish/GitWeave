@@ -31,7 +31,12 @@ def self_serve_add_exception(
     teams = policy.get("teams", [])
     team_policy = next((t for t in teams if t["slug"] == team), None)
     allowed_exceptions = team_policy.get("allowed_exceptions", []) if team_policy else []
-    if allowed_exceptions and exception_name not in allowed_exceptions:
+    if not allowed_exceptions:
+        raise PolicyDenied(
+            f"allowed_exceptions for team '{team}' is empty or absent; "
+            f"exception requests are denied by default (fail-closed): {allowed_exceptions}"
+        )
+    if exception_name not in allowed_exceptions:
         raise PolicyDenied(
             f"Exception type '{exception_name}' is not in allowed_exceptions for team '{team}': {allowed_exceptions}"
         )

@@ -9,13 +9,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import yaml
-
-try:
-    import jsonschema
-    _HAS_JSONSCHEMA = True
-except ImportError:
-    _HAS_JSONSCHEMA = False
 
 POLICY_PATH = Path("config/policy.yaml")
 
@@ -86,19 +81,12 @@ class PolicyLoader:
                 f"{self._path} is empty; expected a mapping with a 'teams' key."
             )
 
-        if _HAS_JSONSCHEMA:
-            try:
-                jsonschema.validate(data, POLICY_SCHEMA)
-            except jsonschema.ValidationError as exc:
-                raise PolicyError(
-                    f"Policy schema validation failed: {exc.message}"
-                ) from exc
-        else:
-            # Minimal validation without jsonschema
-            if not isinstance(data, dict) or "teams" not in data:
-                raise PolicyError(
-                    "Policy schema validation failed: 'teams' is a required property"
-                )
+        try:
+            jsonschema.validate(data, POLICY_SCHEMA)
+        except jsonschema.ValidationError as exc:
+            raise PolicyError(
+                f"Policy schema validation failed: {exc.message}"
+            ) from exc
 
         return data
 
@@ -133,7 +121,12 @@ def check_permission(
 
     if repo_name is not None:
         patterns: list[str] = team_cfg.get("allowed_repo_patterns", [])
-        if patterns and not any(fnmatch.fnmatch(repo_name, p) for p in patterns):
+        if not patterns:
+            raise PolicyDenied(
+                f"{team}.allowed_repo_patterns is empty or absent; "
+                f"repo-name requests are denied by default (fail-closed): {patterns}"
+            )
+        if not any(fnmatch.fnmatch(repo_name, p) for p in patterns):
             raise PolicyDenied(
                 f"repo_name '{repo_name}' does not match any pattern in "
                 f"{team}.allowed_repo_patterns: {patterns}"
