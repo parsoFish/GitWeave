@@ -1,3 +1,4 @@
 pytest>=7.0.0
 pyyaml>=6.0
 jsonschema>=4.0
+copier==9.3.1  # I4: pinned for .copier-answers.yml format stability; I5 three-way reconcile depends on this format
