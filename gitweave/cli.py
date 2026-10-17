@@ -231,6 +231,28 @@ def cmd_overlay_status(args):
         sys.exit(1)
 
 
+def cmd_overlay_request(args):
+    from gitweave.self_serve.overlay_request import (
+        self_serve_overlay_request,
+        OverlayRequestDenied,
+    )
+    from gitweave.policy import PolicyError
+    try:
+        gh_org, policy, caller_login = _self_serve_auth()
+        result = self_serve_overlay_request(
+            args.team, args.repo, args.module, gh_org, policy, caller_login
+        )
+        import json
+        print(json.dumps(result))
+        sys.exit(0)
+    except CallerTokenRequiredError as e:
+        print(f"caller-token-required: {e}", file=sys.stderr)
+        sys.exit(1)
+    except (PolicyError, OverlayRequestDenied) as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_module_render(args):
     from gitweave.module_render import render_module, CopierVersionError
     data = {}
@@ -340,6 +362,12 @@ def main():
     p_os = ov_sub.add_parser("status", help="Show applied overlay modules for a repo")
     p_os.add_argument("repo", metavar="REPO", help="Repository name")
     p_os.set_defaults(func=cmd_overlay_status)
+
+    p_or = ov_sub.add_parser("request", help="Request a module for a team repo")
+    p_or.add_argument("--team", required=True, metavar="SLUG")
+    p_or.add_argument("--repo", required=True, metavar="REPO")
+    p_or.add_argument("--module", required=True, metavar="NAME")
+    p_or.set_defaults(func=cmd_overlay_request)
 
     args = parser.parse_args()
     args.func(args)
