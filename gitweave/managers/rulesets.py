@@ -89,18 +89,16 @@ class RulesetsManager:
             return ResourceStatus(name=name, status="ok")
         except Exception as exc:
             from github import GithubException  # local import to keep optional
-            if isinstance(exc, GithubException) and exc.status == 403:
+            if not isinstance(exc, GithubException):
+                # Non-GitHub exceptions (proxy errors, network failures, etc.)
+                # always propagate — we have no status code to inspect.
+                raise
+            if exc.status == 403:
                 denied, _perm = _is_permission_denied(exc.data)
                 if denied:
                     raise  # permission error — propagate for caller to handle
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
-            if not isinstance(exc, GithubException):
-                # Non-GitHub exceptions with '403' in the message are proxy/auth
-                # errors that should propagate (not be silenced as "skipped").
-                if "403" in str(exc):
-                    raise
-                return ResourceStatus(name=name, status="error", error=str(exc))
             return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:
