@@ -200,13 +200,19 @@ def cmd_self_serve_list_exceptions(args):
 
 
 def cmd_overlay_apply(args):
-    from gitweave.managers.overlays import apply_overlays_for_repo
+    from gitweave.managers.overlays import apply_overlays_for_repo, BranchProtectedError
     try:
         gh_org = _get_org_client()
         results = apply_overlays_for_repo(args.repo, gh_org)
         for r in results:
             print(f"  {r.action}: {r.repo} — {r.message}")
         sys.exit(0)
+    except BranchProtectedError as e:
+        print(
+            f"Error: {e.repo} branch '{e.branch}' is protected: {e.protection}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     except EnvironmentError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
