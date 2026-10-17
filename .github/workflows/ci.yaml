@@ -50,12 +50,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pyyaml
+        run: pip install -e ".[dev]" pyyaml
 
-      - name: Run apply-overlays dry-run and assert output
+      - name: Run gw plan dry-run and assert overlay output
         run: |
           set -euo pipefail
-          OUTPUT=$(python3 scripts/apply-overlays.py \
-            --dry-run config/repos/example.yaml)
+          OUTPUT=$(python3 -m gitweave.cli plan \
+            --fixture tests/fixtures/overlay-smoke.json)
           echo "$OUTPUT"
-          echo "$OUTPUT" | grep "my-org/example-smoke-repo"
+          echo "$OUTPUT" | grep -E "would add \[python_service|unchanged"
