@@ -236,6 +236,8 @@ def apply_overlays_for_repo(
             token = os.environ.get("GW_TOKEN", "")
             headers["Authorization"] = f"Bearer {token}"
             resp = _req.request(method, url, headers=headers, **kwargs)
+            if resp.status_code == 404:
+                return None  # file/resource not found is valid (e.g. .copier-answers.yml absent)
             resp.raise_for_status()
             return resp.json()
 
