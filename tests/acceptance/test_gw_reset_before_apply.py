@@ -3,7 +3,7 @@
 REQUIRES: GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, GW_ORG,
           GW_RESOURCE_PREFIX all set in the environment.
 
-Skips when any of those variables is missing.
+Fails (not skips) when any of those variables is missing — AC1.
 
 Checks:
   - gw reset twice → second run reports nothing changed.
@@ -13,6 +13,7 @@ Checks:
 import json
 import os
 import subprocess
+import sys
 import unittest
 
 _REQUIRED_VARS = (
@@ -23,27 +24,26 @@ _REQUIRED_VARS = (
     "GW_RESOURCE_PREFIX",
 )
 
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
-)
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
-
-
 def _run_gw(*args) -> subprocess.CompletedProcess:
+    """Run gw via sys.executable so it works regardless of entry-point install."""
     return subprocess.run(
-        ["gw", *args],
+        [sys.executable, "-m", "gitweave.cli", *args],
         capture_output=True,
         text=True,
     )
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestResetIdempotency(unittest.TestCase):
     """gw reset twice → second run changes nothing."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     def test_reset_twice_second_run_changes_nothing(self):
         # First reset — may or may not change anything

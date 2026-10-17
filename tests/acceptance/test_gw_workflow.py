@@ -3,7 +3,7 @@
 REQUIRES: GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, GW_ORG,
           GW_RESOURCE_PREFIX all set in the environment.
 
-Skips when any of those variables is missing.
+Fails (not skips) when any of those variables is missing — AC1.
 """
 
 import json
@@ -20,20 +20,11 @@ _REQUIRED_VARS = (
     "GW_RESOURCE_PREFIX",
 )
 
-_SKIP_REASON = (
-    "Live acceptance tests require GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, "
-    "GW_APP_INSTALLATION_ID, GW_ORG and GW_RESOURCE_PREFIX to be set."
-)
-
 _VOLATILE_KEYS = frozenset({
     "id", "node_id", "created_at", "updated_at",
     "source", "source_type", "url", "html_url",
     "links", "_links",
 })
-
-
-def _have_credentials() -> bool:
-    return all(os.environ.get(v) for v in _REQUIRED_VARS)
 
 
 def _strip_volatile(obj):
@@ -50,17 +41,25 @@ def _strip_volatile(obj):
 
 
 def _run_gw(*args) -> subprocess.CompletedProcess:
-    """Run gw with current environment (credentials must be set)."""
+    """Run gw via sys.executable so it works regardless of entry-point install."""
     return subprocess.run(
-        ["gw", *args],
+        [sys.executable, "-m", "gitweave.cli", *args],
         capture_output=True,
         text=True,
     )
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestApplyIdempotency(unittest.TestCase):
     """gw apply --json twice yields identical stable state."""
+
+    def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
 
     def test_apply_json_twice_identical_state(self):
         # First apply
@@ -93,11 +92,18 @@ class TestApplyIdempotency(unittest.TestCase):
         self.assertEqual(errors, [], f"apply --json reported errors: {errors}")
 
 
-@unittest.skipUnless(_have_credentials(), _SKIP_REASON)
 class TestExtraTeamAbsentAfterApply(unittest.TestCase):
     """A prefixed team NOT in the declaration is absent after gw apply --json."""
 
     def setUp(self):
+        missing = [v for v in _REQUIRED_VARS if not os.environ.get(v)]
+        if missing:
+            self.fail(
+                f"Required env vars not set: {', '.join(missing)}. "
+                "Set GW_APP_ID, GW_APP_PRIVATE_KEY_PATH, GW_APP_INSTALLATION_ID, "
+                "GW_ORG, GW_RESOURCE_PREFIX before running acceptance tests."
+            )
+
         from gitweave.auth import get_github_client
 
         self._gh = get_github_client()

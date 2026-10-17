@@ -1,7 +1,6 @@
 """RulesetsManager — create/delete GitHub org rulesets under GW_RESOURCE_PREFIX.
 
-GW_RESOURCE_PREFIX is the primary ownership marker.  FORGE_RESOURCE_PREFIX is
-optional; when set it must start with GW_RESOURCE_PREFIX and only narrows scope.
+GW_RESOURCE_PREFIX is the ownership marker for all gitweave-managed resources.
 
 PyGithub does not expose a high-level ruleset API, so we call the GitHub REST
 API directly via the org's requester object (org._requester) or a plain requests
@@ -14,22 +13,10 @@ from gitweave.managers.org import ResourceStatus
 
 
 def _get_prefix() -> str:
-    """Return the effective resource prefix.
-
-    Uses GW_RESOURCE_PREFIX as primary.  FORGE_RESOURCE_PREFIX, if set, must
-    start with GW_RESOURCE_PREFIX; otherwise EnvironmentError names it.
-    """
+    """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-managed resources."""
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        return forge_prefix
     return gw_prefix
 
 
@@ -43,9 +30,10 @@ class RulesetsManager:
         self._prefix = _get_prefix()
 
     def list_managed(self) -> list:
-        """Return rulesets whose name starts with FORGE_RESOURCE_PREFIX.
+        """Return rulesets whose name starts with GW_RESOURCE_PREFIX.
 
-        Returns empty list when the org plan does not support rulesets (HTTP 403).
+        Returns empty list when the org plan does not support rulesets
+        (GithubException with HTTP 403).  Other exceptions propagate.
         """
         try:
             _, data = self._org._requester.requestJsonAndCheck(
@@ -53,7 +41,8 @@ class RulesetsManager:
                 f"/orgs/{self._org.login}/rulesets",
             )
         except Exception as exc:
-            if "403" in str(exc):
+            from github import GithubException  # local import to keep optional
+            if isinstance(exc, GithubException) and exc.status == 403:
                 return []
             raise
         return [r for r in (data or []) if _is_managed(r.get("name", ""), self._prefix)]
@@ -81,9 +70,12 @@ class RulesetsManager:
                 )
             return ResourceStatus(name=name, status="ok")
         except Exception as exc:
-            if "403" in str(exc):
+            from github import GithubException  # local import to keep optional
+            if isinstance(exc, GithubException) and exc.status == 403:
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
+            if "403" in str(exc):
+                raise
             return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:

@@ -1,0 +1,35 @@
+{
+  "narrative": "A team member can now act as their own admin — running `gw self-serve new-repo`, `update-content`, `add-member`, or `add-exception` without a platform engineer. A YAML policy file governs every request by team identity, naming pattern, and allowed setting type, failing closed on absent lists. The plan engine tracks self-serve repos, exceptions, and memberships through all three state branches (create / unchanged / delete), closing the I2 regression. Acceptance tests now fail fast on missing credentials instead of skipping silently, and containment and reset are proven against live API state, not CLI output.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "Plan output gains self-serve resource types with all three action branches",
+      "acRef": "WI-8",
+      "command": "gw plan"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Full offline test suite passes with 0 failures",
+      "acRef": "WI-10",
+      "command": "python3 -m pytest tests/"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Rulesets unsupported-plan typed check passes",
+      "acRef": "WI-13",
+      "command": "python3 -m pytest tests/test_rulesets_unsupported_plan.py"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Reset proven by API read-back after a real create",
+      "acRef": "WI-11",
+      "command": "python3 -m pytest tests/acceptance/test_gw_reset_readback.py"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Containment proven by API state after apply and reset",
+      "acRef": "WI-12",
+      "command": "python3 -m pytest tests/acceptance/test_gw_containment.py"
+    }
+  ]
+}

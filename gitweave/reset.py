@@ -23,14 +23,6 @@ def reset(gh_org) -> ResetResult:
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty for reset")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope when set; must start with gw_prefix.
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
 
     result = ResetResult()
     changed = False

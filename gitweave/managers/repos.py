@@ -1,7 +1,6 @@
 """ReposManager — create/update/delete GitHub org repos under GW_RESOURCE_PREFIX.
 
-GW_RESOURCE_PREFIX is the primary ownership marker.  FORGE_RESOURCE_PREFIX is
-optional; when set it must start with GW_RESOURCE_PREFIX and only narrows scope.
+GW_RESOURCE_PREFIX is the ownership marker for all gitweave-managed resources.
 """
 import os
 
@@ -9,22 +8,10 @@ from gitweave.managers.org import ResourceStatus
 
 
 def _get_prefix() -> str:
-    """Return the effective resource prefix.
-
-    Uses GW_RESOURCE_PREFIX as primary.  FORGE_RESOURCE_PREFIX, if set, must
-    start with GW_RESOURCE_PREFIX; otherwise EnvironmentError names it.
-    """
+    """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-managed resources."""
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
     if not gw_prefix:
         raise EnvironmentError("GW_RESOURCE_PREFIX must be set and non-empty")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        return forge_prefix
     return gw_prefix
 
 

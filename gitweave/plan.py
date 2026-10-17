@@ -67,18 +67,7 @@ def plan(fixture_path: str | None = None) -> PlanResult:
     must be set or EnvironmentError is raised.
     """
     cfg = load_config()
-    gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
-    forge_prefix = os.environ.get("FORGE_RESOURCE_PREFIX", "")
-    # FORGE_RESOURCE_PREFIX narrows scope when set; must start with gw_prefix.
-    if forge_prefix:
-        if not forge_prefix.startswith(gw_prefix):
-            raise EnvironmentError(
-                f"FORGE_RESOURCE_PREFIX ({forge_prefix!r}) must start with "
-                f"GW_RESOURCE_PREFIX ({gw_prefix!r})"
-            )
-        prefix = forge_prefix  # narrower scope — forge_prefix ⊆ gw_prefix space
-    else:
-        prefix = gw_prefix
+    prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
 
     if fixture_path is not None:
         snapshot = _load_fixture(fixture_path)
@@ -130,6 +119,25 @@ def _diff(cfg: dict, snapshot: dict, prefix: str) -> PlanResult:
             for r in snapshot.get(rtype, [])
             if _resource_name(r).startswith(prefix)
         }
+        snap_names.discard("")
+        for n in sorted(declared_names - snap_names):
+            result.items.append(PlanItem(label, n, "create"))
+        for n in sorted(snap_names - declared_names):
+            result.items.append(PlanItem(label, n, "delete"))
+        for n in sorted(declared_names & snap_names):
+            result.items.append(PlanItem(label, n, "unchanged"))
+
+    # Self-serve resource types: no prefix filter (explicitly declared in policy).
+    self_serve_type_map = {
+        "self_serve_repos": "self_serve_repo",
+        "policy_exceptions": "policy_exception",
+        "team_memberships": "team_membership",
+    }
+
+    for rtype, label in self_serve_type_map.items():
+        declared_names = {_resource_name(r) for r in cfg.get(rtype, [])}
+        declared_names.discard("")
+        snap_names = {_resource_name(r) for r in snapshot.get(rtype, [])}
         snap_names.discard("")
         for n in sorted(declared_names - snap_names):
             result.items.append(PlanItem(label, n, "create"))
