@@ -1,12 +1,12 @@
 # I4 — Modules that exist, and overlays that apply them
 
-> _Derived from `demo.json` (D-07). Essence:_ I4 — Modules that exist, and overlays that apply them — 17 work items delivered against 65 acceptance criteria, 2 merge-boundary gates run. 1 of 4 checkpoints changed behaviour. Command output compared after normalising: tap-duration, duration, iso-timestamp, worktree path. API bodies compared as JSON after dropping volatile JSON keys (ids, timestamps, urls, etags, sizes, watchers) and declared ignoreKeys.
+> _Derived from `demo.json` (D-07). Essence:_ I4 — Modules that exist, and overlays that apply them — 18 work items delivered against 85 acceptance criteria, 2 merge-boundary gates run.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-Teams can now declare Copier modules in their repo overlay config and apply them directly to repositories via Git Trees API — no pull request, no manual file copying. The python_service and terraform_module templates render offline, land atomically on the default branch, and record their applied state in per-module answers files. Policy enforcement gates which modules each team may request. The rulesets 403 split, recording transport, and updated plan output complete the foundation for I5's three-way reconcile.
+Teams can now declare Copier modules in their repo overlays — GitWeave renders and commits them atomically via the Git Trees API with no pull request. The `gw plan` command shows what would be added or updated before any write occurs; `gw apply` commits the rendered files directly to the default branch; `gw overlay status` reads back the per-module answers file to confirm what is applied. A policy layer enforces which modules each team may request via `gw overlay request`. The rulesets 403 split ensures plan failures name the real cause — unsupported org plan versus missing token permission — so operators act on accurate information.
 
 ## Summary
 
@@ -27,93 +27,22 @@ Teams can now declare Copier modules in their repo overlay config and apply them
 - WI-14 [complete] K2 — Apply-path edges the round-2 plan deferred (operator items 2, 3, 4): an empty repository (no commits) bootstraps and receives the modules (the demo's own path); gw overlay status on a repository with no modules prints 'no modules applied' and exits 0; a push refused by branch protection fails non-zero naming the repository, branch and protection, and never reports success.
 - WI-15 [complete] K3 — terraform_module as team content (operator R69 option a) + module directories named by _metadata.name (items 5, 8). GitWeave itself stays Terraform-free: the docs guards scan GitWeave's own docs, README and copilot-context only, never modules/, and still bite on a Terraform token in GitWeave's own docs.
 - WI-16 [complete] K4 — Copier as a declared dependency, version-enforced (items 6, 7): copier is declared in pyproject.toml's dependencies with the same spec as requirements.txt, and gw module render refuses a module whose min_copier_version is above the installed Copier, naming both versions (no deferral).
-- Commit: `65a1d3189d8e78856e743ba2fe956c28fb5e074b`
+- WI-17 [failed] # WI-17 — review-fix concern (code-fix)
+- Commit: `d6d7287761114d11fa5c1c6631df91a2eb518d80`
 
 ## Visual Changes
 
-### Quality gate passes across structure, overlay schema, and copier schema tests
+### gw plan reports overlay modules to add before and after the change
 
-- **Command:** `python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q`
 
-**Before output:**
-```
-........................................................................ [ 53%]
-...............................................................          [100%]
-135 passed, 1 deselected in 0.22s
+### Primary quality gate: structure, overlay schema, copier schema all green
 
-```
 
-**After output:**
-```
-........................................................................ [ 52%]
-................................................................       [100%]
-136 passed, 1 deselected, 2 subtests passed in 0.23s
+### gw apply --json shows overlay modules applied with no pull request
 
-```
-![Plan 1: WI-12 — before](.capture/before/Plan-1-WI-12-1kq58o.filmstrip.png)
-[▶ Plan 1: WI-12 — before (webm)](.capture/before/Plan-1-WI-12-1kq58o.webm)
-![Plan 1: WI-12 — after](.capture/after/Plan-1-WI-12-1kq58o.filmstrip.png)
-[▶ Plan 1: WI-12 — after (webm)](.capture/after/Plan-1-WI-12-1kq58o.webm)
 
-### Rulesets field reports unsupported (not a raw 403 error) in org JSON
+### git ls-files confirms gitweave.egg-info is gitignored and apply-overlays.py is deleted
 
-- **Command:** `gw org rulesets --json`
-
-**Before output:**
-```
-[]
-[stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
-```
-
-**After output:**
-```
-[]
-[stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
-```
-![Plan 2: WI-1 — before](.capture/before/Plan-2-WI-1-e7s99z.filmstrip.png)
-[▶ Plan 2: WI-1 — before (webm)](.capture/before/Plan-2-WI-1-e7s99z.webm)
-![Plan 2: WI-1 — after](.capture/after/Plan-2-WI-1-e7s99z.filmstrip.png)
-[▶ Plan 2: WI-1 — after (webm)](.capture/after/Plan-2-WI-1-e7s99z.webm)
-
-### Plan shows overlay diff — files to add for unmodified repo, unchanged for matched repo
-
-- **Command:** `gw plan`
-
-**Before output:**
-```
-  ~ org_settings/org_settings
-
-```
-
-**After output:**
-```
-  ~ org_settings/org_settings
-
-```
-![Plan 3: WI-8 — before](.capture/before/Plan-3-WI-8-sw6ji7.filmstrip.png)
-[▶ Plan 3: WI-8 — before (webm)](.capture/before/Plan-3-WI-8-sw6ji7.webm)
-![Plan 3: WI-8 — after](.capture/after/Plan-3-WI-8-sw6ji7.filmstrip.png)
-[▶ Plan 3: WI-8 — after (webm)](.capture/after/Plan-3-WI-8-sw6ji7.webm)
-
-### Org repos list confirms overlay-test repo exists post-apply
-
-- **Command:** `gw org repos --json`
-
-**Before output:**
-```
-[]
-
-```
-
-**After output:**
-```
-[]
-
-```
-![Plan 4: WI-6 — before](.capture/before/Plan-4-WI-6-17kktq.filmstrip.png)
-[▶ Plan 4: WI-6 — before (webm)](.capture/before/Plan-4-WI-6-17kktq.webm)
-![Plan 4: WI-6 — after](.capture/after/Plan-4-WI-6-17kktq.filmstrip.png)
-[▶ Plan 4: WI-6 — after (webm)](.capture/after/Plan-4-WI-6-17kktq.webm)
 
 ## Test Evidence
 
@@ -191,6 +120,26 @@ Teams can now declare Copier modules in their repo overlay config and apply them
 - (WI-15) GIVEN terraform_module WHEN gw module render terraform_module --dest <tmp> runs offline with a non-default module_name THEN the rendered main.tf and CI workflow contain that module_name and the CI workflow parses as YAML
 - (WI-16) GIVEN pyproject.toml and requirements.txt WHEN their copier entries are compared THEN both declare copier with the same version specifier
 - (WI-16) GIVEN a test module whose copier.yaml declares min_copier_version above the installed Copier WHEN gw module render runs on it, and again with the enforcement mutated to a no-op THEN the real run exits non-zero naming the required and installed versions and renders nothing; the mutant run fails the test
+- (WI-17) GIVEN the gitweave package and its tests WHEN any file is searched for GW_TOKEN THEN no file references GW_TOKEN: live overlay auth uses the GitHub App installation token (auth.get_installation_token), and tests never inject a token env var
+- (WI-17) GIVEN GW_TOKEN is unset and HTTP is intercepted WHEN gw overlay apply <repo> runs through the real CLI dispatch THEN auth.get_installation_token is called and every overlay HTTP request carries its token in Authorization (spy probe, no injected env)
+- (WI-17) GIVEN a repo config declaring spec.modules WHEN gitweave.apply.apply(org) runs (gw apply) THEN gw apply applies that repo's overlays through the overlay apply path (apply_overlays_for_repo or apply_module_to_repo is invoked for the repo)
+- (WI-17) GIVEN live GW_* credentials and GW_TOKEN unset WHEN tests/acceptance/test_gw_apply_overlay_live.py runs: it creates a prefixed empty repo, declares an overlay for it in a temporary config, runs `gw apply` as a subprocess, then cleans up THEN the default branch holds the rendered .github/workflows/ci.yml and the module answers file, read back through the API with the installation token; a second `gw apply` leaves the head SHA unchanged; no pull request exists; 0 skipped
+- (WI-17) GIVEN the recorded fixture and no credentials WHEN gw plan --json --fixture tests/fixtures/overlay-smoke.json runs THEN it exits 0 and prints JSON with a rulesets field and the overlay items
+- (WI-17) GIVEN the org rulesets endpoint returns 403 {"message":"Resource not accessible by integration"} (missing token permission) WHEN RulesetsManager.list_managed runs THEN it raises (exit non-zero at the CLI, naming the permission) instead of returning an empty list; the plan-lacking body "Upgrade to GitHub Team to enable this feature." is the only 403 reported as unsupported
+- (WI-17) GIVEN the live throwaway org, whose plan lacks rulesets WHEN gw plan --json runs live THEN exit 0 and the rulesets field reports "unsupported" carrying the API message ("Upgrade to GitHub Team…"), not [] or "no drift"
+- (WI-17) GIVEN the gitweave package WHEN HTTP errors are classified THEN no code path classifies by status-code substring ("403" in str(exc)/msg anywhere; any "<3 digits>" in in overlays.py); classification uses exc.status / resp.status_code
+- (WI-17) GIVEN a fixture repo whose applied python_service version is 19990101.0 (older than declared) WHEN gw plan runs offline THEN the overlay line reports an update, not "unchanged"
+- (WI-17) GIVEN team a with allowed_modules [python_service] and allowed_repo_patterns [a-*] WHEN team a requests python_service for repo b-x THEN the request is refused naming allowed_repo_patterns and apply is never called
+- (WI-17) GIVEN the repository WHEN tests and code are searched THEN GW_CONTROL_REPO and _assert_no_control_repo_pr are gone
+- (WI-17) GIVEN a mutant where apply_module_to_repo also POSTs /repos/{r}/pulls WHEN the overlay and self-serve unit suites run THEN at least one test fails: the no-PR assertion runs on the REAL self-serve request path (apply_module_to_repo is not patched out in those tests)
+- (WI-17) GIVEN a mutant that writes "wrong-value" as the repo-scope custom property value WHEN the offline suite runs THEN at least one offline test fails that passes on the unmutated tree (the repo-scope idempotency test asserts the value actually written, not a hardcoded fake GET)
+- (WI-17) GIVEN the self-serve CLI WHEN tests/test_cli_self_serve_real_dispatch.py runs THEN add-member and add-exception (as well as update-content) each have a real-parser/real-dispatch test, only HTTP faked, asserting the write request each makes (method, path and body); a handler that skips its write fails it
+- (WI-17) GIVEN live GW_* credentials WHEN the live add-member test runs with gw self-serve add-member made a no-op in the subprocess (sitecustomize mutant) THEN the test fails: it asserts the membership absent first without pre-adding it, runs the command, reads it back present, and cleans up in tearDown
+- (WI-17) GIVEN an empty repository and a module rendering several files WHEN the overlay is applied THEN the module answers file is written last, so a failure part-way never records the module as applied (asserted on the recorded request order in tests/test_overlay_empty_repo.py)
+- (WI-17) GIVEN a transport whose every response is None (ref 404) WHEN apply_module_to_repo runs THEN it raises a named error, not TypeError
+- (WI-17) GIVEN the empty-repo and two-module live acceptance tests WHEN they are read THEN each reads back .github/workflows/ (a rendered module file) through the API and asserts its content, not only the commit SHA
+- (WI-17) GIVEN modules/terraform_module rendered with a non-default input WHEN tests/test_module_terraform_render.py -k yamllint runs THEN the rendered CI workflow passes yamllint
+- (WI-17) GIVEN all GW_* variables unset WHEN python3 -m pytest tests/ runs THEN zero failures: live tests skip with a reason naming GW_*, they never self.fail (AC12)
 
 ## Files Changed
 
@@ -198,6 +147,41 @@ Teams can now declare Copier modules in their repo overlay config and apply them
 - `.gitignore`
 - `config/policy.yaml`
 - `config/repos/example.yaml`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-1-WI-12-1kq58o.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-1-WI-12-1kq58o.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-1-WI-12-1kq58o.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-1-WI-12-1kq58o.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-2-WI-1-e7s99z.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-2-WI-1-e7s99z.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-2-WI-1-e7s99z.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-2-WI-1-e7s99z.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-3-WI-8-sw6ji7.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-3-WI-8-sw6ji7.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-3-WI-8-sw6ji7.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-3-WI-8-sw6ji7.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-4-WI-6-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-4-WI-6-17kktq.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-4-WI-6-17kktq.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/after/Plan-4-WI-6-17kktq.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-1-WI-12-1kq58o.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-1-WI-12-1kq58o.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-1-WI-12-1kq58o.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-1-WI-12-1kq58o.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-2-WI-1-e7s99z.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-2-WI-1-e7s99z.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-2-WI-1-e7s99z.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-2-WI-1-e7s99z.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-3-WI-8-sw6ji7.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-3-WI-8-sw6ji7.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-3-WI-8-sw6ji7.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-3-WI-8-sw6ji7.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-4-WI-6-17kktq.filmstrip.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-4-WI-6-17kktq.out`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-4-WI-6-17kktq.png`
+- `demo/INIT-2026-10-17-i4-modules-overlays/.capture/before/Plan-4-WI-6-17kktq.webm`
+- `demo/INIT-2026-10-17-i4-modules-overlays/DEMO.md`
+- `demo/INIT-2026-10-17-i4-modules-overlays/demo-plan.json`
+- `demo/INIT-2026-10-17-i4-modules-overlays/demo.json`
 - `gitweave.egg-info/PKG-INFO`
 - `gitweave.egg-info/SOURCES.txt`
 - `gitweave.egg-info/dependency_links.txt`
@@ -236,6 +220,7 @@ Teams can now declare Copier modules in their repo overlay config and apply them
 - `tests/test_dry_run_smoke.py`
 - `tests/test_i3b_residuals.py`
 - `tests/test_i4_integration.py`
+- `tests/test_manager_resources.py`
 - `tests/test_module_min_copier_version.py`
 - `tests/test_module_render.py`
 - `tests/test_module_terraform_render.py`
@@ -253,5 +238,5 @@ Teams can now declare Copier modules in their repo overlay config and apply them
 - `tests/test_structure.py`
 
 ```
-57 files changed, 4528 insertions(+), 497 deletions(-)
+93 files changed, 5182 insertions(+), 502 deletions(-)
 ```
