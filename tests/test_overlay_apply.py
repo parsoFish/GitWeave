@@ -32,19 +32,21 @@ def _b64(text: str) -> str:
     return base64.b64encode(text.encode("utf-8")).decode("ascii")
 
 
-def _make_handler(applied_state: dict | None):
+def _make_handler(applied_state: dict | None, module_name: str = "python_service"):
     """Return a fake GitHub API handler for overlay apply tests.
 
     Args:
-        applied_state: dict to return for .copier-answers.yml, or None (404).
+        applied_state: dict to return for .gitweave/<module>.copier-answers.yml, or None (404).
+        module_name: module name used to build the per-module path.
     """
     blob_counter = [0]
+    answers_path = f".gitweave/{module_name}.copier-answers.yml"
 
     def handler(method: str, url: str, **kwargs):
         m = method.upper()
 
-        # Applied state — GET contents/.copier-answers.yml
-        if m == "GET" and url.endswith("/contents/.copier-answers.yml"):
+        # Applied state — GET contents/.gitweave/<module>.copier-answers.yml
+        if m == "GET" and url.endswith(f"/contents/{answers_path}"):
             if applied_state is None:
                 return None  # signals 404 / not found
             content_yaml = yaml.dump(applied_state, default_flow_style=False)

@@ -172,9 +172,10 @@ class TestGwOverlayAcceptance(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_overlay_apply_create_branch_live(self):
-        """AC1: gw overlay apply on a clean repo creates .copier-answers.yml."""
-        # Clean state: remove .copier-answers.yml if it exists from a prior run
-        _delete_file_on_default_branch(self.gh_repo, ".copier-answers.yml")
+        """AC1: gw overlay apply on a clean repo creates .gitweave/<module>.copier-answers.yml."""
+        _per_module_path = f".gitweave/{_MODULE_NAME}.copier-answers.yml"
+        # Clean state: remove per-module answers file if it exists from a prior run
+        _delete_file_on_default_branch(self.gh_repo, _per_module_path)
 
         result = self._gw_live("overlay", "apply", self.repo_name)
         self.assertEqual(
@@ -182,12 +183,12 @@ class TestGwOverlayAcceptance(unittest.TestCase):
             f"Expected exit 0.\nstdout={result.stdout}\nstderr={result.stderr}",
         )
 
-        # Verify .copier-answers.yml via GitHub API GET
-        contents = self.gh_repo.get_contents(".copier-answers.yml")
+        # Verify per-module answers file via GitHub API GET
+        contents = self.gh_repo.get_contents(_per_module_path)
         answers = yaml.safe_load(contents.decoded_content.decode("utf-8"))
         self.assertEqual(
             answers.get("_module_name"), _MODULE_NAME,
-            f".copier-answers.yml has wrong _module_name: {answers}",
+            f"{_per_module_path} has wrong _module_name: {answers}",
         )
 
         # Transport must have sent zero POST .../pulls
@@ -237,13 +238,14 @@ class TestGwOverlayAcceptance(unittest.TestCase):
             "Expected new commit after input change.",
         )
 
-        # Verify .copier-answers.yml reflects updated inputs
-        contents = self.gh_repo.get_contents(".copier-answers.yml")
+        # Verify per-module answers file reflects updated inputs
+        _per_module_path = f".gitweave/{_MODULE_NAME}.copier-answers.yml"
+        contents = self.gh_repo.get_contents(_per_module_path)
         answers = yaml.safe_load(contents.decoded_content.decode("utf-8"))
         self.assertEqual(
             answers.get("_answers", {}).get("service_name"),
             _MODULE_INPUTS_UPDATED["service_name"],
-            f"Expected updated service_name in .copier-answers.yml; got {answers}",
+            f"Expected updated service_name in {_per_module_path}; got {answers}",
         )
 
         # No open PRs

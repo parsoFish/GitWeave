@@ -57,8 +57,22 @@ def self_serve_overlay_request(
         from gitweave.transport import RecordingTransport
         transport = RecordingTransport(handler=lambda m, u, **kw: {})
 
+    # Look up declared version and inputs from repo config if available.
+    version = "latest"
+    inputs_from_config: dict = {}
+    try:
+        from gitweave.config import load_repo_config
+        repo_config = load_repo_config(repo)
+        modules_cfg = repo_config.get("spec", {}).get("modules", [])
+        mod_cfg = next((m for m in modules_cfg if m.get("name") == module_name), None)
+        if mod_cfg:
+            version = mod_cfg.get("version", "latest")
+            inputs_from_config = mod_cfg.get("inputs", {})
+    except Exception:
+        pass  # config absent or unreadable — fall back to "latest"
+
     org_login = getattr(gh_org, "login", "org")
     repo_full_name = f"{org_login}/{repo}"
-    spec = ModuleSpec(name=module_name, version="latest", inputs={})
+    spec = ModuleSpec(name=module_name, version=version, inputs=inputs_from_config)
     result = apply_module_to_repo(repo_full_name, spec, transport)
     return {"action": result.action, "repo": repo, "module": module_name}
