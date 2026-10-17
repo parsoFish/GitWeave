@@ -28,6 +28,14 @@ class EmptyRepositoryError(Exception):
     """Raised when a GitHub repository has no commits yet (HTTP 409)."""
 
 
+class RepositoryNotFoundError(Exception):
+    """Raised when the target repository does not exist (transport returned None on ref lookup)."""
+
+    def __init__(self, repo_full_name: str) -> None:
+        self.repo = repo_full_name
+        super().__init__(f"Repository {repo_full_name!r} not found (transport returned None)")
+
+
 class BranchProtectedError(Exception):
     """Raised when branch protection prevents a ref update (HTTP 422)."""
 
@@ -139,6 +147,10 @@ def apply_module_to_repo(
                 "GET",
                 f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
             )
+            # AC17: transport returns None on 404 (repo absent) — raise a named
+            # error so callers get RepositoryNotFoundError, not TypeError.
+            if ref_resp is None:
+                raise RepositoryNotFoundError(repo_full_name)
             current_sha = ref_resp["object"]["sha"]
 
             # 2. Get parent tree SHA
@@ -147,6 +159,8 @@ def apply_module_to_repo(
                 f"{BASE_URL}/repos/{repo_full_name}/git/commits/{current_sha}",
             )
             parent_tree_sha = commit_info["tree"]["sha"]
+        except RepositoryNotFoundError:
+            raise  # propagate — not an empty-repo condition
         except Exception as exc:
             status = getattr(exc, "status", None)
             msg = str(exc)
@@ -334,10 +348,17 @@ def apply_overlays_for_repo(
     for mod in modules:
         spec = ModuleSpec(
             name=mod["name"],
-            version=mod["version"],
+            version=mod.get("version", ""),  # version is optional in config; default empty
             inputs=mod.get("inputs", {}),
         )
-        result = apply_module_to_repo(repo_full_name, spec, transport)
+        try:
+            result = apply_module_to_repo(repo_full_name, spec, transport)
+        except RepositoryNotFoundError as exc:
+            result = OverlayApplyResult(
+                repo=repo_full_name,
+                action="error",
+                message=str(exc),
+            )
         results.append(result)
 
     return results

@@ -47,14 +47,14 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
         for f in sorted(repos_dir.glob("*.yaml")):
             repo_cfg = yaml.safe_load(f.read_text()) or {}
             if "apiVersion" in repo_cfg:
-                # Overlay repo: extract short name from spec.repository or filename.
+                # Overlay repo: use the file stem as the lookup key so that
+                # load_repo_config(short_name) finds this exact file.
+                # spec.repository is metadata about the upstream template source
+                # and may reference a different org; the file stem is canonical.
                 spec = repo_cfg.get("spec", {})
                 modules = spec.get("modules", [])
                 if modules:
-                    repo_ref = spec.get("repository", f.stem)
-                    # repo_ref may be "owner/name" or just "name"
-                    short_name = repo_ref.split("/")[-1]
-                    overlay_repos.append(short_name)
+                    overlay_repos.append(f.stem)
                 continue
             repo_cfg.setdefault("slug", f.stem)
             repos.append(repo_cfg)

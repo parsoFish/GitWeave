@@ -17,7 +17,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from gitweave.managers.overlays import ModuleSpec, apply_module_to_repo
+from gitweave.managers.overlays import (
+    ModuleSpec,
+    RepositoryNotFoundError,
+    apply_module_to_repo,
+)
 from gitweave.transport import RecordingTransport
 
 REPO = "test-org/empty-repo"
@@ -133,6 +137,43 @@ class TestOverlayEmptyRepo(unittest.TestCase):
                 "gitweave.managers.overlays.render_module", side_effect=_fake_render
             ):
                 apply_module_to_repo(REPO, spec, transport)
+
+
+class TestRepositoryNotFoundError(unittest.TestCase):
+    """AC17: transport returning None on ref lookup → RepositoryNotFoundError, not TypeError."""
+
+    def test_none_ref_raises_repository_not_found_not_type_error(self):
+        """GIVEN a transport whose every response is None (repo 404)
+        WHEN apply_module_to_repo runs
+        THEN it raises RepositoryNotFoundError, not TypeError.
+        """
+        def _all_none_handler(method, url, **kwargs):
+            return None
+
+        transport = RecordingTransport(handler=_all_none_handler)
+        spec = ModuleSpec(name="python_service", version="1.0.0", inputs={})
+
+        with patch("gitweave.managers.overlays.render_module", side_effect=_fake_render):
+            with self.assertRaises(RepositoryNotFoundError) as ctx:
+                apply_module_to_repo(REPO, spec, transport)
+
+        self.assertIn(REPO, str(ctx.exception))
+
+    def test_none_ref_does_not_raise_type_error(self):
+        """Confirm TypeError is NOT the error when ref response is None."""
+        def _all_none_handler(method, url, **kwargs):
+            return None
+
+        transport = RecordingTransport(handler=_all_none_handler)
+        spec = ModuleSpec(name="python_service", version="1.0.0", inputs={})
+
+        with patch("gitweave.managers.overlays.render_module", side_effect=_fake_render):
+            try:
+                apply_module_to_repo(REPO, spec, transport)
+            except TypeError:
+                self.fail("apply_module_to_repo raised TypeError instead of RepositoryNotFoundError")
+            except RepositoryNotFoundError:
+                pass  # expected
 
 
 if __name__ == "__main__":
