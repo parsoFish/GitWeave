@@ -1,0 +1,29 @@
+{
+  "narrative": "Teams can now declare Copier modules in their repo overlay config and apply them directly to repositories via Git Trees API — no pull request, no manual file copying. The python_service and terraform_module templates render offline, land atomically on the default branch, and record their applied state in per-module answers files. Policy enforcement gates which modules each team may request. The rulesets 403 split, recording transport, and updated plan output complete the foundation for I5's three-way reconcile.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "Quality gate passes across structure, overlay schema, and copier schema tests",
+      "acRef": "WI-12",
+      "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Rulesets field reports unsupported (not a raw 403 error) in org JSON",
+      "acRef": "WI-1",
+      "command": "gw org rulesets --json"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Plan shows overlay diff — files to add for unmodified repo, unchanged for matched repo",
+      "acRef": "WI-8",
+      "command": "gw plan"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "Org repos list confirms overlay-test repo exists post-apply",
+      "acRef": "WI-6",
+      "command": "gw org repos --json"
+    }
+  ]
+}
