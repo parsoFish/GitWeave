@@ -1,6 +1,8 @@
 """Self-service overlay request — team-driven module application."""
 from __future__ import annotations
 
+import fnmatch
+
 from gitweave.managers.overlays import apply_module_to_repo, ModuleSpec
 from gitweave.policy import PolicyDenied, PolicyError  # noqa: F401 (re-exported)
 
@@ -43,14 +45,21 @@ def self_serve_overlay_request(
     # passes the result of PolicyLoader().load(), i.e. a dict).
     if hasattr(policy, "allowed_modules_for_team"):
         allowed = policy.allowed_modules_for_team(team)
+        repo_patterns: list[str] = []
     else:
         teams = policy.get("teams", [])
         team_cfg = next((t for t in teams if t.get("slug") == team), None)
         allowed = list(team_cfg.get("allowed_modules", [])) if team_cfg else []
+        repo_patterns = list(team_cfg.get("allowed_repo_patterns", [])) if team_cfg else []
     if module_name not in allowed:
         raise OverlayRequestDenied(
             f"policy-module-not-allowed: module '{module_name}' is not in "
             f"team '{team}' allowed_modules (rule: allowed_modules)"
+        )
+    if repo_patterns and not any(fnmatch.fnmatch(repo, pat) for pat in repo_patterns):
+        raise OverlayRequestDenied(
+            f"policy-repo-not-allowed: repo '{repo}' does not match "
+            f"team '{team}' allowed_repo_patterns {repo_patterns!r} (rule: allowed_repo_patterns)"
         )
 
     if transport is None:
