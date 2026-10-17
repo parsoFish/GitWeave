@@ -79,9 +79,8 @@ def _build_gh_org():
 
 def _get_app_token() -> str:
     """Return GitHub App installation access token."""
-    from gitweave.auth import get_github_client
-    gh = get_github_client()
-    return gh.auth.token
+    from gitweave.auth import get_installation_token
+    return get_installation_token()
 
 
 def _ensure_repo_exists(gh_org, repo_name: str):
