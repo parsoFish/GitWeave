@@ -12,15 +12,33 @@ import os
 from gitweave.managers.org import ResourceStatus
 
 
+_PLAN_LACKING_PHRASES = (
+    "Upgrade to GitHub Team to enable this feature",
+)
+
+
 def _is_permission_denied(exc_data) -> tuple[bool, str | None]:
     """Check if a 403 body indicates a missing token permission (vs plan not supporting rulesets).
 
     Returns (is_permission_denied, permission_field_name).
-    A permissions error has an ``errors`` list with ``code == "missing"`` entries.
-    A plan-lacking error typically has a plain string body or no ``errors`` key.
+
+    Permission-denied cases (should raise):
+    - Body has ``errors`` list with ``code == "missing"`` entries (fine-grained token scopes).
+    - Body ``message`` contains "Resource not accessible by integration" (classic token permission).
+
+    Plan-lacking cases (should return [] / "unsupported"):
+    - Body ``message`` contains "Upgrade to GitHub Team to enable this feature".
     """
     if not isinstance(exc_data, dict):
         return False, None
+    message = exc_data.get("message", "")
+    # Plan-lacking → NOT a permission error; return early so caller treats as unsupported.
+    if any(phrase in message for phrase in _PLAN_LACKING_PHRASES):
+        return False, None
+    # Classic token permission denial.
+    if "Resource not accessible by integration" in message:
+        return True, None
+    # Fine-grained token scope missing.
     for err in exc_data.get("errors", []):
         if isinstance(err, dict) and err.get("code") == "missing":
             return True, err.get("field")
