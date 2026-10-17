@@ -71,7 +71,7 @@ def test_load_config_returns_expected_keys(tmp_path):
     root = _build_valid_root(tmp_path)
     result = config_mod.load_config(root=root)
 
-    assert set(result.keys()) == {"org_settings", "teams", "repos", "rulesets"}
+    assert set(result.keys()) == {"org_settings", "teams", "repos", "overlay_repos", "rulesets"}
 
 
 def test_load_config_org_settings_populated(tmp_path):

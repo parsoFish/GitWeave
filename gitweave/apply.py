@@ -7,6 +7,7 @@ from gitweave.managers.org import OrgSettingsManager, ResourceStatus
 from gitweave.managers.teams import TeamsManager
 from gitweave.managers.repos import ReposManager
 from gitweave.managers.rulesets import RulesetsManager
+from gitweave.managers.overlays import apply_overlays_for_repo
 from gitweave.reset import reset
 
 
@@ -50,6 +51,9 @@ def apply(gh_org, json_mode: bool = False) -> ApplyResult:
     repos_mgr = ReposManager(gh_org)
     for repo in cfg["repos"]:
         result.statuses.append(repos_mgr.apply(repo))
+
+    for repo_name in cfg.get("overlay_repos", []):
+        apply_overlays_for_repo(repo_name, gh_org)
 
     rulesets_mgr = RulesetsManager(gh_org)
     for rs in cfg["rulesets"]:

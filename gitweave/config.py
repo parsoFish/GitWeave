@@ -41,11 +41,20 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
     # Skip overlay YAML files (identified by an `apiVersion` key — those are
     # for apply-overlays.py, not for gitweave's repo manager).
     repos = []
+    overlay_repos = []
     repos_dir = root / "config" / "repos"
     if repos_dir.exists():
         for f in sorted(repos_dir.glob("*.yaml")):
             repo_cfg = yaml.safe_load(f.read_text()) or {}
             if "apiVersion" in repo_cfg:
+                # Overlay repo: extract short name from spec.repository or filename.
+                spec = repo_cfg.get("spec", {})
+                modules = spec.get("modules", [])
+                if modules:
+                    repo_ref = spec.get("repository", f.stem)
+                    # repo_ref may be "owner/name" or just "name"
+                    short_name = repo_ref.split("/")[-1]
+                    overlay_repos.append(short_name)
                 continue
             repo_cfg.setdefault("slug", f.stem)
             repos.append(repo_cfg)
@@ -54,6 +63,7 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
         "org_settings": org_raw,
         "teams": teams_raw.get("teams", []),
         "repos": repos,
+        "overlay_repos": overlay_repos,
         "rulesets": rulesets_raw.get("rulesets", []),
     }
 
