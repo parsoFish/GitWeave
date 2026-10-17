@@ -47,6 +47,7 @@ teams:
       - content-update
     allowed_repo_patterns:
       - "example-*"
+      - "gw-*"
     allowed_modules:
       - python_service
 
