@@ -270,7 +270,12 @@ def cmd_module_render(args):
         sys.exit(1)
 
 
-def main():
+def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the gw argument parser without consuming argv.
+
+    Extracted from main() so tests can walk the parser tree to enumerate
+    registered subcommands and verify permission-check coverage.
+    """
     parser = argparse.ArgumentParser(prog="gw", description="GitWeave org controller")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -331,7 +336,7 @@ def main():
     p_ae.set_defaults(func=cmd_self_serve_add_exception)
 
     p_le = ss_sub.add_parser("list-exceptions", help="List policy exceptions for a repo")
-    p_le.add_argument("--team", required=True, metavar="TEAM")
+    p_le.add_argument("--team", metavar="TEAM")  # optional: omit to list all teams
     p_le.add_argument("--repo", required=True, metavar="REPO")
     p_le.set_defaults(func=cmd_self_serve_list_exceptions)
 
@@ -369,6 +374,11 @@ def main():
     p_or.add_argument("--module", required=True, metavar="NAME")
     p_or.set_defaults(func=cmd_overlay_request)
 
+    return parser
+
+
+def main():
+    parser = _build_parser()
     args = parser.parse_args()
     args.func(args)
 
