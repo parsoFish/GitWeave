@@ -19,7 +19,7 @@ from gitweave.auth import get_github_client
 from gitweave.config import load_config
 
 Action = Literal["create", "update", "delete", "unchanged"]
-OverlayAction = Literal["add", "unchanged", "skip"]
+OverlayAction = Literal["add", "update", "unchanged", "skip"]
 
 
 @dataclass
@@ -43,6 +43,9 @@ class OverlayPlanItem:
             ver = f" @ {self.module_version}" if self.module_version else ""
             files = f" ({self.file_count} files)" if self.file_count else ""
             return f"  {self.repo_name}: would add [{self.module_name}{ver}]{files}"
+        if self.action == "update":
+            ver = f" @ {self.module_version}" if self.module_version else ""
+            return f"  {self.repo_name}: update ({self.module_name}{ver})"
         if self.action == "unchanged":
             ver = f" @ {self.module_version}" if self.module_version else ""
             return f"  {self.repo_name}: unchanged ({self.module_name}{ver})"
@@ -186,15 +189,22 @@ def _diff_overlays(fixture_repos: list[dict]) -> list[OverlayPlanItem]:
                 )
             )
         else:
-            # Overlay applied; check if it matches declared
+            # Overlay applied; check if version matches current declared version
             applied_module = applied.get("_module_name", "")
             applied_version = applied.get("_module_version", "")
+            current_version = _module_version(applied_module)
+            if current_version and applied_version != current_version:
+                action: OverlayAction = "update"
+                display_version = current_version
+            else:
+                action = "unchanged"
+                display_version = applied_version
             overlay_items.append(
                 OverlayPlanItem(
                     repo_name=repo_name,
-                    action="unchanged",
+                    action=action,
                     module_name=applied_module,
-                    module_version=applied_version,
+                    module_version=display_version,
                 )
             )
     return overlay_items
