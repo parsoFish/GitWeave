@@ -279,16 +279,16 @@ def test_rulesets_apply_updates_when_present(monkeypatch):
     assert result.status == "ok"
 
 
-def test_rulesets_apply_returns_error_on_exception(monkeypatch):
+def test_rulesets_apply_propagates_non_github_exception(monkeypatch):
+    """Non-GithubException from apply always propagates (AC4: no str(exc) coercion)."""
     monkeypatch.setenv("GW_RESOURCE_PREFIX", "forge-")
     monkeypatch.delenv("FORGE_RESOURCE_PREFIX", raising=False)
     org = MagicMock()
     org.login = "my-org"
     org._requester.requestJsonAndCheck.side_effect = RuntimeError("rate limited")
     mgr = RulesetsManager(org)
-    result = mgr.apply({"name": "forge-x"})
-    assert result.status == "error"
-    assert "rate limited" in result.error
+    with pytest.raises(RuntimeError, match="rate limited"):
+        mgr.apply({"name": "forge-x"})
 
 
 def test_rulesets_list_managed_filters_by_prefix(monkeypatch):
