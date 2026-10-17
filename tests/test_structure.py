@@ -129,5 +129,27 @@ class TestRepoStructure(unittest.TestCase):
             )
 
 
+    # --- gitweave.egg-info must be gitignored ---
+
+    def test_egg_info_gitignored(self):
+        """gitweave.egg-info/ must be covered by .gitignore."""
+        result = subprocess.run(
+            ["git", "ls-files", "gitweave.egg-info"],
+            capture_output=True, text=True, cwd=self.repo_root,
+        )
+        self.assertEqual(
+            result.stdout.strip(), "",
+            "gitweave.egg-info/ must be gitignored (git ls-files returned output)",
+        )
+        result2 = subprocess.run(
+            ["git", "check-ignore", "gitweave.egg-info/SOURCES.txt"],
+            capture_output=True, text=True, cwd=self.repo_root,
+        )
+        self.assertEqual(
+            result2.returncode, 0,
+            "gitweave.egg-info/SOURCES.txt must be gitignored (git check-ignore exited non-zero)",
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

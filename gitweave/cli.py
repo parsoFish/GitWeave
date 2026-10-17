@@ -199,7 +199,105 @@ def cmd_self_serve_list_exceptions(args):
         sys.exit(1)
 
 
-def main():
+def cmd_overlay_apply(args):
+    from gitweave.managers.overlays import apply_overlays_for_repo, BranchProtectedError
+    try:
+        gh_org = _get_org_client()
+        results = apply_overlays_for_repo(args.repo, gh_org)
+        for r in results:
+            print(f"  {r.action}: {r.repo} — {r.message}")
+        sys.exit(0)
+    except BranchProtectedError as e:
+        print(
+            f"Error: {e.repo} branch '{e.branch}' is protected: {e.protection}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_overlay_status(args):
+    from gitweave.managers.overlays import get_overlay_status
+    try:
+        gh_org = _get_org_client()
+        gh_repo = gh_org.get_repo(args.repo)
+        modules = get_overlay_status(gh_repo)
+        if not modules:
+            print("No modules applied.")
+        else:
+            for m in modules:
+                print(f"  {m['name']} @ {m['version']}")
+                for k, v in (m.get("inputs") or {}).items():
+                    print(f"    {k}: {v}")
+        sys.exit(0)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_overlay_request(args):
+    from gitweave.self_serve.overlay_request import (
+        self_serve_overlay_request,
+        OverlayRequestDenied,
+    )
+    from gitweave.policy import PolicyError
+    from gitweave.transport import RecordingTransport
+    import requests as _req
+
+    def _live_handler(method, url, **kwargs):
+        headers = kwargs.pop("headers", {})
+        token = os.environ.get("GW_TOKEN", "")
+        headers["Authorization"] = f"Bearer {token}"
+        resp = _req.request(method, url, headers=headers, **kwargs)
+        if resp.status_code == 404:
+            return None  # resource not found is valid (e.g. .copier-answers.yml absent)
+        resp.raise_for_status()
+        return resp.json()
+
+    transport = RecordingTransport(handler=_live_handler)
+
+    try:
+        gh_org, policy, caller_login = _self_serve_auth()
+        result = self_serve_overlay_request(
+            args.team, args.repo, args.module, gh_org, policy, caller_login,
+            transport=transport,
+        )
+        import json
+        print(json.dumps(result))
+        sys.exit(0)
+    except CallerTokenRequiredError as e:
+        print(f"caller-token-required: {e}", file=sys.stderr)
+        sys.exit(1)
+    except (PolicyError, OverlayRequestDenied) as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_module_render(args):
+    from gitweave.module_render import render_module, CopierVersionError
+    data = {}
+    for pair in (args.data or []):
+        k, _, v = pair.partition("=")
+        data[k.strip()] = v.strip()
+    try:
+        render_module(args.name, args.dest, data=data)
+        sys.exit(0)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except CopierVersionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the gw argument parser without consuming argv.
+
+    Extracted from main() so tests can walk the parser tree to enumerate
+    registered subcommands and verify permission-check coverage.
+    """
     parser = argparse.ArgumentParser(prog="gw", description="GitWeave org controller")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -260,10 +358,49 @@ def main():
     p_ae.set_defaults(func=cmd_self_serve_add_exception)
 
     p_le = ss_sub.add_parser("list-exceptions", help="List policy exceptions for a repo")
-    p_le.add_argument("--team", required=True, metavar="TEAM")
+    p_le.add_argument("--team", metavar="TEAM")  # optional: omit to list all teams
     p_le.add_argument("--repo", required=True, metavar="REPO")
     p_le.set_defaults(func=cmd_self_serve_list_exceptions)
 
+    # module subcommands
+    p_mod = sub.add_parser("module", help="Copier module operations")
+    mod_sub = p_mod.add_subparsers(dest="mod_command", required=True)
+
+    p_mr = mod_sub.add_parser("render", help="Render a module offline to a destination")
+    p_mr.add_argument("name", metavar="NAME", help="Module name (snake_case)")
+    p_mr.add_argument("--dest", required=True, metavar="DIR", help="Destination directory")
+    p_mr.add_argument(
+        "--data",
+        metavar="KEY=VALUE",
+        nargs="*",
+        default=[],
+        help="Override copier question answers (key=value pairs)",
+    )
+    p_mr.set_defaults(func=cmd_module_render)
+
+    # overlay subcommands
+    p_ov = sub.add_parser("overlay", help="Module overlay operations")
+    ov_sub = p_ov.add_subparsers(dest="ov_command", required=True)
+
+    p_oa = ov_sub.add_parser("apply", help="Apply declared overlays for a repo")
+    p_oa.add_argument("repo", metavar="REPO", help="Repository name")
+    p_oa.set_defaults(func=cmd_overlay_apply)
+
+    p_os = ov_sub.add_parser("status", help="Show applied overlay modules for a repo")
+    p_os.add_argument("repo", metavar="REPO", help="Repository name")
+    p_os.set_defaults(func=cmd_overlay_status)
+
+    p_or = ov_sub.add_parser("request", help="Request a module for a team repo")
+    p_or.add_argument("--team", required=True, metavar="SLUG")
+    p_or.add_argument("--repo", required=True, metavar="REPO")
+    p_or.add_argument("--module", required=True, metavar="NAME")
+    p_or.set_defaults(func=cmd_overlay_request)
+
+    return parser
+
+
+def main():
+    parser = _build_parser()
     args = parser.parse_args()
     args.func(args)
 

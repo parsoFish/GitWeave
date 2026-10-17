@@ -1,0 +1,39 @@
+{
+  "statuses": [
+    {
+      "name": "org_settings",
+      "status": "ok",
+      "error": null
+    },
+    {
+      "name": "engineering",
+      "status": "ok",
+      "error": null
+    },
+    {
+      "name": "platform",
+      "status": "ok",
+      "error": null
+    },
+    {
+      "name": "forge-main-protection",
+      "status": "skipped",
+      "error": "org plan does not support rulesets"
+    }
+  ],
+  "state": {
+    "org_settings": {
+      "description": "",
+      "default_repository_permission": "read",
+      "web_commit_signoff_required": false,
+      "members_can_create_repositories": true
+    },
+    "teams": [],
+    "repos": [],
+    "rulesets": []
+  }
+}
+[stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
+Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
+Request POST /orgs/dave-parso/rulesets failed with 403: Forbidden
+Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden

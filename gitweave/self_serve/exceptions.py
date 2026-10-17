@@ -53,16 +53,19 @@ def self_serve_add_exception(
 
 
 def self_serve_list_exceptions(
-    team: str,
+    team: str | None,
     repo_name: str,
     policy: dict,
     gh_org,
 ) -> list[dict]:
     """Return exceptions recorded on *repo_name* via the GitHub API.
 
-    Raises PolicyDenied if the team lacks permission to view exceptions on this repo.
+    When *team* is provided, checks permission for that team first.
+    When *team* is None, lists all recorded gw-policy-exception properties
+    without a team-scope permission check (read-only, no writes).
     """
-    check_permission(policy, team, "policy-exception", repo_name=repo_name)
+    if team is not None:
+        check_permission(policy, team, "policy-exception", repo_name=repo_name)
     org_login = gh_org.login
     _, data = gh_org._requester.requestJsonAndCheck(
         "GET",
@@ -104,10 +107,31 @@ def _ensure_property_definition(gh_org, org_login: str, property_name: str) -> N
         raise
 
 
+def _get_repo_property(gh_org, org_login: str, repo_name: str, property_name: str) -> str | None:
+    """Return current value of *property_name* on *repo_name*, or None if unset."""
+    try:
+        _, data = gh_org._requester.requestJsonAndCheck(
+            "GET",
+            f"/repos/{org_login}/{repo_name}/properties/values",
+        )
+    except Exception:
+        return None
+    for item in data or []:
+        if item.get("property_name") == property_name:
+            return item.get("value")
+    return None
+
+
 def _set_repo_property(
     gh_org, org_login: str, repo_name: str, property_name: str, value: str
-) -> None:
-    """Set a custom property value on a repo."""
+) -> bool:
+    """Set a custom property value on a repo; skip write if value already matches.
+
+    Returns True if a write was performed, False if already up-to-date (idempotent).
+    """
+    current = _get_repo_property(gh_org, org_login, repo_name, property_name)
+    if current == value:
+        return False
     gh_org._requester.requestJsonAndCheck(
         "PATCH",
         f"/repos/{org_login}/{repo_name}/properties/values",
@@ -117,3 +141,4 @@ def _set_repo_property(
             ]
         },
     )
+    return True

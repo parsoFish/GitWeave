@@ -84,3 +84,38 @@ class TestApplyUnsupportedPlan:
         mgr, _ = _make_manager(requester_side_effect=exc)
         with pytest.raises(RuntimeError, match="403"):
             mgr.apply({"name": "gw-test-ruleset"})
+
+
+# ---------------------------------------------------------------------------
+# permission-denied 403 (missing token permission, not plan-lacking)
+# ---------------------------------------------------------------------------
+
+class TestPermissionDenied:
+    """403 responses with an ``errors`` body indicating a missing permission must propagate.
+
+    This is distinct from the org-plan-lacking case (which returns [] / skipped).
+    The distinction is made by response body content, not string coercion of the exception.
+    """
+
+    def test_403_permission_denied_exits_nonzero(self):
+        """GithubException(403) with permission-denied body → propagates from list_managed.
+
+        The exception carries the original API error data including the missing
+        permission field name (e.g. ``rule_sets``), so callers can surface it.
+        """
+        exc = GithubException(
+            403,
+            {
+                "message": "Resource not accessible by integration",
+                "errors": [{"code": "missing", "field": "rule_sets"}],
+            },
+            None,
+        )
+        mgr, _ = _make_manager(requester_side_effect=exc)
+        with pytest.raises(GithubException) as exc_info:
+            mgr.list_managed()
+        assert exc_info.value.status == 403
+        errors = (exc_info.value.data or {}).get("errors", [])
+        assert any(e.get("field") == "rule_sets" for e in errors), (
+            "Missing permission name 'rule_sets' not found in exception data"
+        )

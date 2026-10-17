@@ -12,6 +12,21 @@ import os
 from gitweave.managers.org import ResourceStatus
 
 
+def _is_permission_denied(exc_data) -> tuple[bool, str | None]:
+    """Check if a 403 body indicates a missing token permission (vs plan not supporting rulesets).
+
+    Returns (is_permission_denied, permission_field_name).
+    A permissions error has an ``errors`` list with ``code == "missing"`` entries.
+    A plan-lacking error typically has a plain string body or no ``errors`` key.
+    """
+    if not isinstance(exc_data, dict):
+        return False, None
+    for err in exc_data.get("errors", []):
+        if isinstance(err, dict) and err.get("code") == "missing":
+            return True, err.get("field")
+    return False, None
+
+
 def _get_prefix() -> str:
     """Return GW_RESOURCE_PREFIX — the ownership marker for all gw-managed resources."""
     gw_prefix = os.environ.get("GW_RESOURCE_PREFIX", "")
@@ -43,7 +58,10 @@ class RulesetsManager:
         except Exception as exc:
             from github import GithubException  # local import to keep optional
             if isinstance(exc, GithubException) and exc.status == 403:
-                return []
+                denied, _perm = _is_permission_denied(exc.data)
+                if denied:
+                    raise  # permission error — caller must handle
+                return []  # org plan does not support rulesets
             raise
         return [r for r in (data or []) if _is_managed(r.get("name", ""), self._prefix)]
 
@@ -71,11 +89,16 @@ class RulesetsManager:
             return ResourceStatus(name=name, status="ok")
         except Exception as exc:
             from github import GithubException  # local import to keep optional
-            if isinstance(exc, GithubException) and exc.status == 403:
+            if not isinstance(exc, GithubException):
+                # Non-GitHub exceptions (proxy errors, network failures, etc.)
+                # always propagate — we have no status code to inspect.
+                raise
+            if exc.status == 403:
+                denied, _perm = _is_permission_denied(exc.data)
+                if denied:
+                    raise  # permission error — propagate for caller to handle
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
-            if "403" in str(exc):
-                raise
             return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:
