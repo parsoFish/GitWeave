@@ -96,7 +96,11 @@ class RulesetsManager:
                 return ResourceStatus(name=name, status="skipped",
                                       error="org plan does not support rulesets")
             if not isinstance(exc, GithubException):
-                raise  # non-GithubException (proxy error, etc.) — propagate
+                # Non-GitHub exceptions with '403' in the message are proxy/auth
+                # errors that should propagate (not be silenced as "skipped").
+                if "403" in str(exc):
+                    raise
+                return ResourceStatus(name=name, status="error", error=str(exc))
             return ResourceStatus(name=name, status="error", error=str(exc))
 
     def delete(self, name: str) -> ResourceStatus:

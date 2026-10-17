@@ -37,14 +37,19 @@ class OverlayApplyResult:
     message: str
 
 
-def _read_applied_state(repo_full_name: str, transport) -> dict | None:
-    """GET /repos/{owner}/{repo}/contents/.copier-answers.yml.
+def _module_answers_path(module_name: str) -> str:
+    """Return the per-module answers file path inside the repo tree."""
+    return f".gitweave/{module_name}.copier-answers.yml"
+
+
+def _read_applied_state(repo_full_name: str, transport, module_name: str) -> dict | None:
+    """GET /repos/{owner}/{repo}/contents/.gitweave/<module>.copier-answers.yml.
 
     Returns parsed YAML dict or None if file not found.
     """
     resp = transport.request(
         "GET",
-        f"{BASE_URL}/repos/{repo_full_name}/contents/.copier-answers.yml",
+        f"{BASE_URL}/repos/{repo_full_name}/contents/{_module_answers_path(module_name)}",
     )
     if resp is None:
         return None
@@ -81,7 +86,7 @@ def apply_module_to_repo(
     Returns:
         OverlayApplyResult with action "created" | "updated" | "unchanged".
     """
-    applied_state = _read_applied_state(repo_full_name, transport)
+    applied_state = _read_applied_state(repo_full_name, transport, module_spec.name)
 
     # Branch 2: no change needed
     if applied_state is not None and _is_unchanged(module_spec, applied_state):
@@ -95,13 +100,15 @@ def apply_module_to_repo(
     with tempfile.TemporaryDirectory() as tmp_dir:
         render_module(module_spec.name, tmp_dir, data=module_spec.inputs)
 
-        # Write .copier-answers.yml into rendered tree
+        # Write per-module answers file into rendered tree
         answers = {
             "_module_name": module_spec.name,
             "_module_version": module_spec.version,
             "_answers": module_spec.inputs,
         }
-        (Path(tmp_dir) / ".copier-answers.yml").write_text(
+        answers_dir = Path(tmp_dir) / ".gitweave"
+        answers_dir.mkdir(parents=True, exist_ok=True)
+        (answers_dir / f"{module_spec.name}.copier-answers.yml").write_text(
             yaml.dump(answers, default_flow_style=False),
             encoding="utf-8",
         )
@@ -174,7 +181,7 @@ def apply_module_to_repo(
 
 
 def get_overlay_status(gh_repo) -> list[dict]:
-    """Read applied overlay state from .copier-answers.yml via PyGitHub API GET.
+    """Read applied overlay state from .gitweave/*.copier-answers.yml via PyGitHub.
 
     Args:
         gh_repo: PyGitHub Repository object.
@@ -182,26 +189,34 @@ def get_overlay_status(gh_repo) -> list[dict]:
     Returns:
         List of dicts, one per applied module:
         [{"name": ..., "version": ..., "inputs": {...}}]
-        Empty list if no .copier-answers.yml found.
+        Empty list if .gitweave/ directory is absent or empty.
     """
     try:
-        from github import GithubException  # type: ignore[import]
-        contents = gh_repo.get_contents(".copier-answers.yml")
-        decoded = contents.decoded_content.decode("utf-8")
-        applied = yaml.safe_load(decoded)
-        if not applied:
-            return []
-        return [{
-            "name": applied.get("_module_name"),
-            "version": applied.get("_module_version"),
-            "inputs": applied.get("_answers", {}),
-        }]
+        contents = gh_repo.get_contents(".gitweave")
     except Exception as exc:
-        # Covers GithubException(404) and UnknownObjectException
         status = getattr(exc, "status", None)
         if status == 404 or "404" in str(exc):
             return []
         raise
+
+    # get_contents returns a list for directories, a ContentFile for a single file
+    if not isinstance(contents, list):
+        contents = [contents]
+
+    result = []
+    for item in contents:
+        if not item.path.endswith(".copier-answers.yml"):
+            continue
+        decoded = item.decoded_content.decode("utf-8")
+        applied = yaml.safe_load(decoded)
+        if not applied:
+            continue
+        result.append({
+            "name": applied.get("_module_name"),
+            "version": applied.get("_module_version"),
+            "inputs": applied.get("_answers", {}),
+        })
+    return result
 
 
 def apply_overlays_for_repo(
