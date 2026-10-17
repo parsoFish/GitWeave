@@ -164,7 +164,7 @@ def apply_module_to_repo(
         except Exception as exc:
             status = getattr(exc, "status", None)
             msg = str(exc)
-            if status == 409 or "409" in msg or "empty" in msg.lower():
+            if status == 409 or "empty" in msg.lower():
                 is_empty_repo = True
             else:
                 raise
@@ -251,7 +251,7 @@ def apply_module_to_repo(
         except Exception as exc:
             status = getattr(exc, "status", None)
             msg = str(exc)
-            if status == 422 or "422" in msg or "protected" in msg.lower():
+            if status == 422 or "protected" in msg.lower():
                 raise BranchProtectedError(
                     repo=repo_full_name,
                     branch=default_branch,
@@ -281,7 +281,7 @@ def get_overlay_status(gh_repo) -> list[dict]:
         contents = gh_repo.get_contents(".gitweave")
     except Exception as exc:
         status = getattr(exc, "status", None)
-        if status == 404 or "404" in str(exc):
+        if status == 404:
             return []
         raise
 
