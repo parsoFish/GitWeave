@@ -173,6 +173,37 @@ def apply_module_to_repo(
     )
 
 
+def get_overlay_status(gh_repo) -> list[dict]:
+    """Read applied overlay state from .copier-answers.yml via PyGitHub API GET.
+
+    Args:
+        gh_repo: PyGitHub Repository object.
+
+    Returns:
+        List of dicts, one per applied module:
+        [{"name": ..., "version": ..., "inputs": {...}}]
+        Empty list if no .copier-answers.yml found.
+    """
+    try:
+        from github import GithubException  # type: ignore[import]
+        contents = gh_repo.get_contents(".copier-answers.yml")
+        decoded = contents.decoded_content.decode("utf-8")
+        applied = yaml.safe_load(decoded)
+        if not applied:
+            return []
+        return [{
+            "name": applied.get("_module_name"),
+            "version": applied.get("_module_version"),
+            "inputs": applied.get("_answers", {}),
+        }]
+    except Exception as exc:
+        # Covers GithubException(404) and UnknownObjectException
+        status = getattr(exc, "status", None)
+        if status == 404 or "404" in str(exc):
+            return []
+        raise
+
+
 def apply_overlays_for_repo(
     repo_name: str,
     gh_org,

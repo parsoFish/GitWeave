@@ -212,6 +212,25 @@ def cmd_overlay_apply(args):
         sys.exit(1)
 
 
+def cmd_overlay_status(args):
+    from gitweave.managers.overlays import get_overlay_status
+    try:
+        gh_org = _get_org_client()
+        gh_repo = gh_org.get_repo(args.repo)
+        modules = get_overlay_status(gh_repo)
+        if not modules:
+            print("No modules applied.")
+        else:
+            for m in modules:
+                print(f"  {m['name']} @ {m['version']}")
+                for k, v in (m.get("inputs") or {}).items():
+                    print(f"    {k}: {v}")
+        sys.exit(0)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_module_render(args):
     from gitweave.module_render import render_module, CopierVersionError
     data = {}
@@ -317,6 +336,10 @@ def main():
     p_oa = ov_sub.add_parser("apply", help="Apply declared overlays for a repo")
     p_oa.add_argument("repo", metavar="REPO", help="Repository name")
     p_oa.set_defaults(func=cmd_overlay_apply)
+
+    p_os = ov_sub.add_parser("status", help="Show applied overlay modules for a repo")
+    p_os.add_argument("repo", metavar="REPO", help="Repository name")
+    p_os.set_defaults(func=cmd_overlay_status)
 
     args = parser.parse_args()
     args.func(args)
