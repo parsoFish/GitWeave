@@ -95,8 +95,12 @@ def cmd_org_teams(args):
 
 
 def cmd_org_rulesets(args):
-    from gitweave.managers.rulesets import RulesetsManager
-    print(json.dumps(RulesetsManager(_get_org_client()).list_managed(), indent=2))
+    from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError
+    try:
+        print(json.dumps(RulesetsManager(_get_org_client()).list_managed(), indent=2))
+    except RulesetsUnsupportedError:
+        # Org plan does not support rulesets — return empty list (no rulesets exist)
+        print(json.dumps([], indent=2))
 
 
 def _self_serve_auth():
