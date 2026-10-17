@@ -162,7 +162,13 @@ def apply_module_to_repo(
         except RepositoryNotFoundError:
             raise  # propagate — not an empty-repo condition
         except Exception as exc:
+            # PyGithub exceptions expose .status; requests HTTPError exposes
+            # .response.status_code — check both so empty-repo 409s are caught
+            # regardless of which transport raises.
             status = getattr(exc, "status", None)
+            if status is None:
+                _resp = getattr(exc, "response", None)
+                status = getattr(_resp, "status_code", None)
             msg = str(exc)
             if status == 409 or "empty" in msg.lower():
                 is_empty_repo = True
@@ -250,6 +256,9 @@ def apply_module_to_repo(
             )
         except Exception as exc:
             status = getattr(exc, "status", None)
+            if status is None:
+                _resp = getattr(exc, "response", None)
+                status = getattr(_resp, "status_code", None)
             msg = str(exc)
             if status == 422 or "protected" in msg.lower():
                 raise BranchProtectedError(
