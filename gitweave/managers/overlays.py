@@ -23,6 +23,22 @@ from gitweave.module_render import render_module  # noqa: E402
 BASE_URL = "https://api.github.com"
 
 
+class EmptyRepositoryError(Exception):
+    """Raised when a GitHub repository has no commits yet (HTTP 409)."""
+
+
+class BranchProtectedError(Exception):
+    """Raised when branch protection prevents a ref update (HTTP 422)."""
+
+    def __init__(self, repo: str, branch: str, protection: str) -> None:
+        self.repo = repo
+        self.branch = branch
+        self.protection = protection
+        super().__init__(
+            f"{repo} branch '{branch}' is protected: {protection}"
+        )
+
+
 @dataclass
 class ModuleSpec:
     name: str
@@ -113,19 +129,30 @@ def apply_module_to_repo(
             encoding="utf-8",
         )
 
-        # 1. Get current ref → parent commit SHA
-        ref_resp = transport.request(
-            "GET",
-            f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
-        )
-        current_sha: str = ref_resp["object"]["sha"]
+        # 1. Get current ref → parent commit SHA (409 = empty repo, no commits yet)
+        is_empty_repo = False
+        current_sha: str | None = None
+        parent_tree_sha: str | None = None
+        try:
+            ref_resp = transport.request(
+                "GET",
+                f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
+            )
+            current_sha = ref_resp["object"]["sha"]
 
-        # 2. Get parent tree SHA
-        commit_info = transport.request(
-            "GET",
-            f"{BASE_URL}/repos/{repo_full_name}/git/commits/{current_sha}",
-        )
-        parent_tree_sha: str = commit_info["tree"]["sha"]
+            # 2. Get parent tree SHA
+            commit_info = transport.request(
+                "GET",
+                f"{BASE_URL}/repos/{repo_full_name}/git/commits/{current_sha}",
+            )
+            parent_tree_sha = commit_info["tree"]["sha"]
+        except Exception as exc:
+            status = getattr(exc, "status", None)
+            msg = str(exc)
+            if status == 409 or "409" in msg or "empty" in msg.lower():
+                is_empty_repo = True
+            else:
+                raise
 
         # 3. Create blobs for every rendered file
         tree_entries: list[dict] = []
@@ -147,31 +174,56 @@ def apply_module_to_repo(
                 "sha": blob_resp["sha"],
             })
 
-        # 4. Create tree
+        # 4. Create tree (omit base_tree for empty repos — no prior tree exists)
+        tree_payload: dict = {"tree": tree_entries}
+        if parent_tree_sha is not None:
+            tree_payload["base_tree"] = parent_tree_sha
         new_tree = transport.request(
             "POST",
             f"{BASE_URL}/repos/{repo_full_name}/git/trees",
-            json={"base_tree": parent_tree_sha, "tree": tree_entries},
+            json=tree_payload,
         )
 
-        # 5. Create commit
+        # 5. Create commit (no parents for initial commit on empty repo)
         action = "updated" if applied_state else "created"
+        commit_payload: dict = {
+            "message": f"chore: apply module {module_spec.name}@{module_spec.version}",
+            "tree": new_tree["sha"],
+            "parents": [] if is_empty_repo else [current_sha],
+        }
         new_commit = transport.request(
             "POST",
             f"{BASE_URL}/repos/{repo_full_name}/git/commits",
-            json={
-                "message": f"chore: apply module {module_spec.name}@{module_spec.version}",
-                "tree": new_tree["sha"],
-                "parents": [current_sha],
-            },
+            json=commit_payload,
         )
 
-        # 6. Update ref (fast-forward)
-        transport.request(
-            "PATCH",
-            f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
-            json={"sha": new_commit["sha"]},
-        )
+        # 6. Create or update ref (POST for empty repo, PATCH for existing branch)
+        if is_empty_repo:
+            transport.request(
+                "POST",
+                f"{BASE_URL}/repos/{repo_full_name}/git/refs",
+                json={
+                    "ref": f"refs/heads/{default_branch}",
+                    "sha": new_commit["sha"],
+                },
+            )
+        else:
+            try:
+                transport.request(
+                    "PATCH",
+                    f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
+                    json={"sha": new_commit["sha"]},
+                )
+            except Exception as exc:
+                status = getattr(exc, "status", None)
+                msg = str(exc)
+                if status == 422 or "422" in msg or "protected" in msg.lower():
+                    raise BranchProtectedError(
+                        repo=repo_full_name,
+                        branch=default_branch,
+                        protection=msg,
+                    ) from exc
+                raise
 
     return OverlayApplyResult(
         repo=repo_full_name,
