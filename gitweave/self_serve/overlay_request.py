@@ -25,7 +25,8 @@ def self_serve_overlay_request(
         repo: Repository name (without org prefix).
         module_name: Module name to apply.
         gh_org: GitHub org object (must have a ``login`` attribute).
-        policy: PolicyLoader instance (``allowed_modules_for_team`` method).
+        policy: PolicyLoader instance or raw policy dict (``allowed_modules_for_team``
+            method or ``teams`` list).
         caller_login: GitHub login of the requesting user.
         transport: RecordingTransport (or compatible).  If *None* a no-op
             recording transport is created so callers can always call
@@ -38,7 +39,14 @@ def self_serve_overlay_request(
         OverlayRequestDenied: if module not in team's allowed_modules.
         PolicyError: if policy.yaml is absent or invalid.
     """
-    allowed = policy.allowed_modules_for_team(team)
+    # Support both a PolicyLoader instance and a raw policy dict (the CLI
+    # passes the result of PolicyLoader().load(), i.e. a dict).
+    if hasattr(policy, "allowed_modules_for_team"):
+        allowed = policy.allowed_modules_for_team(team)
+    else:
+        teams = policy.get("teams", [])
+        team_cfg = next((t for t in teams if t.get("slug") == team), None)
+        allowed = list(team_cfg.get("allowed_modules", [])) if team_cfg else []
     if module_name not in allowed:
         raise OverlayRequestDenied(
             f"policy-module-not-allowed: module '{module_name}' is not in "
