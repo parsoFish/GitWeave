@@ -128,7 +128,7 @@ class TestGwOverlayTwoModulesLive(unittest.TestCase):
         _delete_repo_if_exists(cls.gh_org, cls.repo_name)
 
     def _gw_live(self, *args) -> subprocess.CompletedProcess:
-        return _run_gw(*args, extra_env={"GW_TOKEN": self.app_token})
+        return _run_gw(*args)
 
     # ------------------------------------------------------------------
     # K1c: two-module apply and status

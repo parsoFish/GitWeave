@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 
+from gitweave.auth import get_installation_token
 from gitweave.module_render import render_module  # noqa: E402
 
 BASE_URL = "https://api.github.com"
@@ -305,8 +306,6 @@ def apply_overlays_for_repo(
     Returns:
         List of OverlayApplyResult, one per declared module.
     """
-    import os
-
     from gitweave.config import load_repo_config  # type: ignore[import]
 
     org_login = gh_org.login
@@ -319,8 +318,7 @@ def apply_overlays_for_repo(
 
         def _live_handler(method, url, **kwargs):
             headers = kwargs.pop("headers", {})
-            token = os.environ.get("GW_TOKEN", "")
-            headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"Bearer {get_installation_token()}"
             resp = _req.request(method, url, headers=headers, **kwargs)
             if resp.status_code == 404:
                 return None  # file/resource not found is valid (e.g. .copier-answers.yml absent)

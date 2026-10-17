@@ -164,8 +164,8 @@ class TestGwOverlayAcceptance(unittest.TestCase):
         _delete_repo_if_exists(cls.gh_org, cls.repo_name)
 
     def _gw_live(self, *args) -> subprocess.CompletedProcess:
-        """Run gw with GW_TOKEN set to the app installation token."""
-        return _run_gw(*args, extra_env={"GW_TOKEN": self.app_token})
+        """Run gw; auth.get_installation_token() is used by the subprocess."""
+        return _run_gw(*args)
 
     # ------------------------------------------------------------------
     # AC1: fresh apply creates .copier-answers.yml; no PR

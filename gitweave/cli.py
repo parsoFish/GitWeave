@@ -8,7 +8,7 @@ import sys
 from gitweave.plan import plan
 from gitweave.apply import apply
 from gitweave.reset import reset
-from gitweave.auth import get_github_client, get_caller_token, resolve_caller_login
+from gitweave.auth import get_github_client, get_caller_token, resolve_caller_login, get_installation_token
 from gitweave.auth import CallerTokenRequiredError
 from gitweave.policy import PolicyLoader, PolicyDenied, PolicyError
 from gitweave.self_serve.new_repo import self_serve_new_repo
@@ -248,8 +248,7 @@ def cmd_overlay_request(args):
 
     def _live_handler(method, url, **kwargs):
         headers = kwargs.pop("headers", {})
-        token = os.environ.get("GW_TOKEN", "")
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"Bearer {get_installation_token()}"
         resp = _req.request(method, url, headers=headers, **kwargs)
         if resp.status_code == 404:
             return None  # resource not found is valid (e.g. .copier-answers.yml absent)
