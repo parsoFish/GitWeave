@@ -68,6 +68,29 @@ class PlanResult:
             for oi in self.overlay_items:
                 print(oi.format_line())
 
+    def to_json(self) -> str:
+        """Return JSON representation with rulesets and overlays fields."""
+        rulesets = [
+            {"name": i.name, "action": i.action, "detail": i.detail}
+            for i in self.items
+            if i.resource_type == "ruleset"
+        ]
+        overlays = [
+            {
+                "repo": oi.repo_name,
+                "action": oi.action,
+                "module": oi.module_name,
+                "version": oi.module_version,
+            }
+            for oi in self.overlay_items
+        ]
+        other = [
+            {"resource_type": i.resource_type, "name": i.name, "action": i.action, "detail": i.detail}
+            for i in self.items
+            if i.resource_type != "ruleset"
+        ]
+        return json.dumps({"rulesets": rulesets, "overlays": overlays, "items": other})
+
 
 _MODULES_ROOT = pathlib.Path(__file__).parent.parent / "modules"
 _REPOS_CONFIG_ROOT = pathlib.Path(__file__).parent.parent / "config" / "repos"

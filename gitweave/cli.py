@@ -25,7 +25,10 @@ def _get_org_client():
 def cmd_plan(args):
     try:
         result = plan(fixture_path=getattr(args, "fixture", None))
-        result.print()
+        if getattr(args, "json", False):
+            print(result.to_json())
+        else:
+            result.print()
         sys.exit(0)
     except EnvironmentError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -302,6 +305,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_plan = sub.add_parser("plan", help="Diff declaration against org state")
     p_plan.add_argument("--fixture", metavar="PATH")
+    p_plan.add_argument("--json", action="store_true")
     p_plan.set_defaults(func=cmd_plan)
 
     p_apply = sub.add_parser("apply", help="Apply declaration to live org")
