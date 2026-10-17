@@ -199,6 +199,23 @@ def cmd_self_serve_list_exceptions(args):
         sys.exit(1)
 
 
+def cmd_module_render(args):
+    from gitweave.module_render import render_module, CopierVersionError
+    data = {}
+    for pair in (args.data or []):
+        k, _, v = pair.partition("=")
+        data[k.strip()] = v.strip()
+    try:
+        render_module(args.name, args.dest, data=data)
+        sys.exit(0)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except CopierVersionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="gw", description="GitWeave org controller")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -263,6 +280,22 @@ def main():
     p_le.add_argument("--team", required=True, metavar="TEAM")
     p_le.add_argument("--repo", required=True, metavar="REPO")
     p_le.set_defaults(func=cmd_self_serve_list_exceptions)
+
+    # module subcommands
+    p_mod = sub.add_parser("module", help="Copier module operations")
+    mod_sub = p_mod.add_subparsers(dest="mod_command", required=True)
+
+    p_mr = mod_sub.add_parser("render", help="Render a module offline to a destination")
+    p_mr.add_argument("name", metavar="NAME", help="Module name (snake_case)")
+    p_mr.add_argument("--dest", required=True, metavar="DIR", help="Destination directory")
+    p_mr.add_argument(
+        "--data",
+        metavar="KEY=VALUE",
+        nargs="*",
+        default=[],
+        help="Override copier question answers (key=value pairs)",
+    )
+    p_mr.set_defaults(func=cmd_module_render)
 
     args = parser.parse_args()
     args.func(args)
