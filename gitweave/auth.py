@@ -111,8 +111,35 @@ def get_installation_auth() -> Auth.AppInstallationAuth:
 
 
 def get_installation_token() -> str:
-    """Return the GitHub App installation access token string."""
-    return get_installation_auth().token
+    """Return the GitHub App installation access token string.
+
+    AppInstallationAuth.token requires withRequester() to be called first,
+    which happens inside Github(auth=...).  We create a client to prime the
+    requester, then read the token back from our local auth reference.
+    """
+    env = _check_env()
+
+    key_path = env["GW_APP_PRIVATE_KEY_PATH"]
+    if not os.path.exists(key_path):
+        raise FileNotFoundError(
+            f"Private key file not found: {key_path!r} (GW_APP_PRIVATE_KEY_PATH)"
+        )
+
+    with open(key_path, "r") as fh:
+        private_key = fh.read()
+
+    app_auth = Auth.AppAuth(
+        app_id=int(env["GW_APP_ID"]),
+        private_key=private_key,
+    )
+    install_auth = Auth.AppInstallationAuth(
+        app_auth=app_auth,
+        installation_id=int(env["GW_APP_INSTALLATION_ID"]),
+    )
+    # Github.__init__ calls install_auth.withRequester(requester), enabling
+    # install_auth.token to exchange the JWT for an installation access token.
+    Github(auth=install_auth)
+    return install_auth.token
 
 
 def get_github_client() -> Github:
