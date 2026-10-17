@@ -202,3 +202,70 @@ def test_diff_create_update_unchanged():
     assert action_map[("org_settings", "org_settings")] == "update"
     assert action_map[("team", "alpha")] == "create"
     assert action_map[("team", "beta")] == "unchanged"
+
+
+# ---------------------------------------------------------------------------
+# AC7 — rulesets unsupported in JSON output
+# ---------------------------------------------------------------------------
+
+
+class TestPlanResultRulesetsUnsupportedJson:
+    """AC7: when org plan lacks rulesets, to_json() reports 'unsupported'."""
+
+    def test_to_json_rulesets_unsupported_string(self):
+        """rulesets_unsupported set → JSON rulesets field is 'unsupported: <msg>'."""
+        r = PlanResult()
+        r.rulesets_unsupported = "Upgrade to GitHub Team to enable this feature."
+        data = json.loads(r.to_json())
+        rulesets = data["rulesets"]
+        assert isinstance(rulesets, str), f"expected str, got {type(rulesets)}"
+        assert "unsupported" in rulesets
+        assert "Upgrade to GitHub" in rulesets
+
+    def test_to_json_rulesets_unsupported_empty_when_supported(self):
+        """rulesets_unsupported unset → JSON rulesets field is a list."""
+        r = PlanResult()
+        data = json.loads(r.to_json())
+        assert isinstance(data["rulesets"], list)
+
+    def test_live_snapshot_unsupported_propagates_to_plan_result(self, monkeypatch):
+        """_live_snapshot catches RulesetsUnsupportedError and plan() propagates it."""
+        from github import GithubException
+        from gitweave.managers.rulesets import RulesetsUnsupportedError
+
+        monkeypatch.setenv("GW_ORG", "test-org")
+        monkeypatch.setenv("GW_RESOURCE_PREFIX", "gw-")
+
+        mock_org = MagicMock()
+        mock_org.login = "test-org"
+
+        # Teams mock: list_managed returns []
+        mock_teams_mgr = MagicMock()
+        mock_teams_mgr.list_managed.return_value = []
+
+        # Rulesets mock: list_managed raises RulesetsUnsupportedError
+        plan_lacking_msg = "Upgrade to GitHub Team to enable this feature."
+        mock_rulesets_mgr = MagicMock()
+        mock_rulesets_mgr.list_managed.side_effect = RulesetsUnsupportedError(plan_lacking_msg)
+
+        cfg = {
+            "org_settings": {},
+            "teams": [],
+            "repos": [],
+            "rulesets": [],
+            "overlay_repos": [],
+        }
+
+        with (
+            patch("gitweave.plan.get_github_client") as mock_gh,
+            patch("gitweave.plan.load_config", return_value=cfg),
+            patch("gitweave.managers.teams.TeamsManager", return_value=mock_teams_mgr),
+            patch("gitweave.managers.rulesets.RulesetsManager", return_value=mock_rulesets_mgr),
+        ):
+            mock_gh.return_value.get_organization.return_value = mock_org
+            result = plan()
+
+        assert result.rulesets_unsupported == plan_lacking_msg
+        data = json.loads(result.to_json())
+        assert "unsupported" in data["rulesets"]
+        assert "Upgrade to GitHub" in data["rulesets"]

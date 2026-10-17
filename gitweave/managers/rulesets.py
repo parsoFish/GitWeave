@@ -17,6 +17,17 @@ _PLAN_LACKING_PHRASES = (
 )
 
 
+class RulesetsUnsupportedError(Exception):
+    """Raised when the org plan does not support rulesets (plan-lacking 403).
+
+    Carries the API ``message`` so callers can surface it to operators.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
 def _is_permission_denied(exc_data) -> tuple[bool, str | None]:
     """Check if a 403 body indicates a missing token permission (vs plan not supporting rulesets).
 
@@ -26,7 +37,7 @@ def _is_permission_denied(exc_data) -> tuple[bool, str | None]:
     - Body has ``errors`` list with ``code == "missing"`` entries (fine-grained token scopes).
     - Body ``message`` contains "Resource not accessible by integration" (classic token permission).
 
-    Plan-lacking cases (should return [] / "unsupported"):
+    Plan-lacking cases (should raise RulesetsUnsupportedError):
     - Body ``message`` contains "Upgrade to GitHub Team to enable this feature".
     """
     if not isinstance(exc_data, dict):
@@ -43,6 +54,16 @@ def _is_permission_denied(exc_data) -> tuple[bool, str | None]:
         if isinstance(err, dict) and err.get("code") == "missing":
             return True, err.get("field")
     return False, None
+
+
+def _get_plan_lacking_message(exc_data) -> str | None:
+    """Return the API message when the 403 is a plan-lacking response, else None."""
+    if not isinstance(exc_data, dict):
+        return None
+    message = exc_data.get("message", "")
+    if any(phrase in message for phrase in _PLAN_LACKING_PHRASES):
+        return message
+    return None
 
 
 def _get_prefix() -> str:
@@ -65,8 +86,13 @@ class RulesetsManager:
     def list_managed(self) -> list:
         """Return rulesets whose name starts with GW_RESOURCE_PREFIX.
 
-        Returns empty list when the org plan does not support rulesets
-        (GithubException with HTTP 403).  Other exceptions propagate.
+        Raises :class:`RulesetsUnsupportedError` when the org plan does not
+        support rulesets (plan-lacking 403 containing "Upgrade to GitHub Team").
+
+        Raises :class:`github.GithubException` when the 403 indicates a missing
+        token permission ("Resource not accessible by integration").
+
+        Other exceptions propagate unchanged.
         """
         try:
             _, data = self._org._requester.requestJsonAndCheck(
@@ -79,7 +105,10 @@ class RulesetsManager:
                 denied, _perm = _is_permission_denied(exc.data)
                 if denied:
                     raise  # permission error — caller must handle
-                return []  # org plan does not support rulesets
+                plan_lacking_msg = _get_plan_lacking_message(exc.data)
+                if plan_lacking_msg is not None:
+                    raise RulesetsUnsupportedError(plan_lacking_msg)
+                return []  # unknown 403 body — treat as silently unsupported
             raise
         return [r for r in (data or []) if _is_managed(r.get("name", ""), self._prefix)]
 
@@ -105,6 +134,9 @@ class RulesetsManager:
                     input=ruleset_cfg,
                 )
             return ResourceStatus(name=name, status="ok")
+        except RulesetsUnsupportedError:
+            return ResourceStatus(name=name, status="skipped",
+                                  error="org plan does not support rulesets")
         except Exception as exc:
             from github import GithubException  # local import to keep optional
             if not isinstance(exc, GithubException):

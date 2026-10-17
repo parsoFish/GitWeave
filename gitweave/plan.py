@@ -53,6 +53,7 @@ class OverlayPlanItem:
 class PlanResult:
     items: list[PlanItem] = field(default_factory=list)
     overlay_items: list[OverlayPlanItem] = field(default_factory=list)
+    rulesets_unsupported: str = ""  # non-empty → org plan lacks rulesets; carries API message
 
     def print(self) -> None:
         """Print human-readable diff: + create, ~ update, - delete, = unchanged."""
@@ -69,12 +70,19 @@ class PlanResult:
                 print(oi.format_line())
 
     def to_json(self) -> str:
-        """Return JSON representation with rulesets and overlays fields."""
-        rulesets = [
-            {"name": i.name, "action": i.action, "detail": i.detail}
-            for i in self.items
-            if i.resource_type == "ruleset"
-        ]
+        """Return JSON representation with rulesets and overlays fields.
+
+        When the org plan does not support rulesets, ``rulesets`` is a string
+        of the form ``"unsupported: <API message>"`` instead of a list.
+        """
+        if self.rulesets_unsupported:
+            rulesets: list | str = f"unsupported: {self.rulesets_unsupported}"
+        else:
+            rulesets = [
+                {"name": i.name, "action": i.action, "detail": i.detail}
+                for i in self.items
+                if i.resource_type == "ruleset"
+            ]
         overlays = [
             {
                 "repo": oi.repo_name,
@@ -193,15 +201,31 @@ def _diff_overlays(fixture_repos: list[dict]) -> list[OverlayPlanItem]:
 
 
 def _live_snapshot(gh_org: object, prefix: str) -> dict:
-    """Build snapshot dict from live org (same shape as fixture)."""
-    from gitweave.managers.teams import TeamsManager  # noqa: PLC0415
+    """Build snapshot dict from live org (same shape as fixture).
 
-    return {
+    When the org plan does not support rulesets (plan-lacking 403), a special
+    ``_rulesets_unsupported`` key is added to the returned dict carrying the
+    API message.  Callers (``plan()``) propagate this to ``PlanResult``.
+    """
+    from gitweave.managers.teams import TeamsManager  # noqa: PLC0415
+    from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError  # noqa: PLC0415
+
+    try:
+        rulesets = RulesetsManager(gh_org).list_managed()
+        rulesets_unsupported: str | None = None
+    except RulesetsUnsupportedError as exc:
+        rulesets = []
+        rulesets_unsupported = exc.message
+
+    snapshot: dict = {
         "org_settings": {},
         "teams": [{"name": t.name} for t in TeamsManager(gh_org).list_managed()],
         "repos": [],
-        "rulesets": [],
+        "rulesets": rulesets,
     }
+    if rulesets_unsupported is not None:
+        snapshot["_rulesets_unsupported"] = rulesets_unsupported
+    return snapshot
 
 
 def plan(fixture_path: str | None = None) -> PlanResult:
@@ -227,6 +251,10 @@ def plan(fixture_path: str | None = None) -> PlanResult:
         snapshot = _live_snapshot(gh.get_organization(gw_org), prefix)
 
     result = _diff(cfg, snapshot, prefix)
+
+    # Propagate rulesets-unsupported marker (only possible from live snapshot).
+    if "_rulesets_unsupported" in snapshot:
+        result.rulesets_unsupported = snapshot["_rulesets_unsupported"]
 
     if fixture_path is not None:
         fixture_repos = snapshot.get("repos", [])
