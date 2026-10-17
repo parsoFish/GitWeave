@@ -237,10 +237,24 @@ def cmd_overlay_request(args):
         OverlayRequestDenied,
     )
     from gitweave.policy import PolicyError
+    from gitweave.transport import RecordingTransport
+    import requests as _req
+
+    def _live_handler(method, url, **kwargs):
+        headers = kwargs.pop("headers", {})
+        token = os.environ.get("GW_TOKEN", "")
+        headers["Authorization"] = f"Bearer {token}"
+        resp = _req.request(method, url, headers=headers, **kwargs)
+        resp.raise_for_status()
+        return resp.json()
+
+    transport = RecordingTransport(handler=_live_handler)
+
     try:
         gh_org, policy, caller_login = _self_serve_auth()
         result = self_serve_overlay_request(
-            args.team, args.repo, args.module, gh_org, policy, caller_login
+            args.team, args.repo, args.module, gh_org, policy, caller_login,
+            transport=transport,
         )
         import json
         print(json.dumps(result))

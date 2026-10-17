@@ -56,3 +56,19 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
         "repos": repos,
         "rulesets": rulesets_raw.get("rulesets", []),
     }
+
+
+def load_repo_config(repo_name: str, root: pathlib.Path = REPO_ROOT) -> dict:
+    """Load repo overlay config from config/repos/{repo_name}.yaml.
+
+    Args:
+        repo_name: short repository name (without org prefix).
+        root: project root directory (default: auto-detected from module path).
+
+    Returns:
+        Parsed YAML dict, expected to contain ``spec.modules``.
+
+    Raises:
+        FileNotFoundError: if config/repos/{repo_name}.yaml does not exist.
+    """
+    return _load_yaml(f"config/repos/{repo_name}.yaml", root)
