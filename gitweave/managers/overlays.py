@@ -154,7 +154,36 @@ def apply_module_to_repo(
             else:
                 raise
 
-        # 3. Create blobs for every rendered file
+        # 3a. Empty repos: Git Database API (/git/blobs, /git/trees, etc.) returns
+        # 409 for repos with no git objects at all.  Use the higher-level Contents
+        # API (PUT /repos/{owner}/{repo}/contents/{path}) instead — it works on
+        # truly uninitialized repos and creates the initial commit automatically.
+        if is_empty_repo:
+            for path in sorted(Path(tmp_dir).rglob("*")):
+                if not path.is_file():
+                    continue
+                raw = path.read_bytes()
+                content_b64 = base64.b64encode(raw).decode("ascii")
+                rel = str(path.relative_to(tmp_dir))
+                transport.request(
+                    "PUT",
+                    f"{BASE_URL}/repos/{repo_full_name}/contents/{rel}",
+                    json={
+                        "message": (
+                            f"chore: apply module"
+                            f" {module_spec.name}@{module_spec.version}"
+                        ),
+                        "content": content_b64,
+                        "branch": default_branch,
+                    },
+                )
+            return OverlayApplyResult(
+                repo=repo_full_name,
+                action="created",
+                message=f"applied {module_spec.name}@{module_spec.version}",
+            )
+
+        # 3b. Non-empty repo: create blobs for every rendered file
         tree_entries: list[dict] = []
         for path in sorted(Path(tmp_dir).rglob("*")):
             if not path.is_file():
@@ -184,12 +213,12 @@ def apply_module_to_repo(
             json=tree_payload,
         )
 
-        # 5. Create commit (no parents for initial commit on empty repo)
+        # 5. Create commit
         action = "updated" if applied_state else "created"
         commit_payload: dict = {
             "message": f"chore: apply module {module_spec.name}@{module_spec.version}",
             "tree": new_tree["sha"],
-            "parents": [] if is_empty_repo else [current_sha],
+            "parents": [current_sha],
         }
         new_commit = transport.request(
             "POST",
@@ -197,33 +226,23 @@ def apply_module_to_repo(
             json=commit_payload,
         )
 
-        # 6. Create or update ref (POST for empty repo, PATCH for existing branch)
-        if is_empty_repo:
+        # 6. Update ref
+        try:
             transport.request(
-                "POST",
-                f"{BASE_URL}/repos/{repo_full_name}/git/refs",
-                json={
-                    "ref": f"refs/heads/{default_branch}",
-                    "sha": new_commit["sha"],
-                },
+                "PATCH",
+                f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
+                json={"sha": new_commit["sha"]},
             )
-        else:
-            try:
-                transport.request(
-                    "PATCH",
-                    f"{BASE_URL}/repos/{repo_full_name}/git/refs/heads/{default_branch}",
-                    json={"sha": new_commit["sha"]},
-                )
-            except Exception as exc:
-                status = getattr(exc, "status", None)
-                msg = str(exc)
-                if status == 422 or "422" in msg or "protected" in msg.lower():
-                    raise BranchProtectedError(
-                        repo=repo_full_name,
-                        branch=default_branch,
-                        protection=msg,
-                    ) from exc
-                raise
+        except Exception as exc:
+            status = getattr(exc, "status", None)
+            msg = str(exc)
+            if status == 422 or "422" in msg or "protected" in msg.lower():
+                raise BranchProtectedError(
+                    repo=repo_full_name,
+                    branch=default_branch,
+                    protection=msg,
+                ) from exc
+            raise
 
     return OverlayApplyResult(
         repo=repo_full_name,
