@@ -199,6 +199,19 @@ def cmd_self_serve_list_exceptions(args):
         sys.exit(1)
 
 
+def cmd_overlay_apply(args):
+    from gitweave.managers.overlays import apply_overlays_for_repo
+    try:
+        gh_org = _get_org_client()
+        results = apply_overlays_for_repo(args.repo, gh_org)
+        for r in results:
+            print(f"  {r.action}: {r.repo} — {r.message}")
+        sys.exit(0)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_module_render(args):
     from gitweave.module_render import render_module, CopierVersionError
     data = {}
@@ -296,6 +309,14 @@ def main():
         help="Override copier question answers (key=value pairs)",
     )
     p_mr.set_defaults(func=cmd_module_render)
+
+    # overlay subcommands
+    p_ov = sub.add_parser("overlay", help="Module overlay operations")
+    ov_sub = p_ov.add_subparsers(dest="ov_command", required=True)
+
+    p_oa = ov_sub.add_parser("apply", help="Apply declared overlays for a repo")
+    p_oa.add_argument("repo", metavar="REPO", help="Repository name")
+    p_oa.set_defaults(func=cmd_overlay_apply)
 
     args = parser.parse_args()
     args.func(args)
