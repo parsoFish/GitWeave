@@ -6,7 +6,7 @@ from gitweave.config import load_config
 from gitweave.managers.org import OrgSettingsManager, ResourceStatus
 from gitweave.managers.teams import TeamsManager
 from gitweave.managers.repos import ReposManager
-from gitweave.managers.rulesets import RulesetsManager
+from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError
 from gitweave.managers.overlays import apply_overlays_for_repo
 from gitweave.reset import reset
 
@@ -67,9 +67,13 @@ def apply(gh_org, json_mode: bool = False) -> ApplyResult:
 
 def _read_state(gh_org) -> dict:
     """Read current org state as a JSON-serialisable dict."""
+    try:
+        rulesets = RulesetsManager(gh_org).list_managed()
+    except RulesetsUnsupportedError as exc:
+        rulesets = {"unsupported": exc.message}
     return {
         "org_settings": OrgSettingsManager(gh_org).current(),
         "teams": [{"name": t.name} for t in TeamsManager(gh_org).list_managed()],
         "repos": [{"name": r.name} for r in ReposManager(gh_org).list_managed()],
-        "rulesets": RulesetsManager(gh_org).list_managed(),
+        "rulesets": rulesets,
     }
