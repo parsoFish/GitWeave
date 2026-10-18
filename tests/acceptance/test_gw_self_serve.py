@@ -323,6 +323,14 @@ class TestSelfServeAcceptance(unittest.TestCase):
         except Exception:
             pre_state = None  # not a member before test
 
+        # Ensure caller is in the team so _require_caller_is_member passes
+        # (add-member requires caller to already be an active team member)
+        if pre_state != "active":
+            from gitweave.auth import get_github_client
+            _gh = get_github_client()
+            gh_user = _gh.get_user(login)
+            gh_team.add_membership(gh_user)
+
         try:
             result = _run_gw(
                 "self-serve", "add-member",
