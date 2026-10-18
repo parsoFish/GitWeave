@@ -1,29 +1,29 @@
 {
-  "narrative": "Teams can now declare Copier modules in their repo overlay config and apply them directly to repositories via Git Trees API — no pull request, no manual file copying. The python_service and terraform_module templates render offline, land atomically on the default branch, and record their applied state in per-module answers files. Policy enforcement gates which modules each team may request. The rulesets 403 split, recording transport, and updated plan output complete the foundation for I5's three-way reconcile.",
+  "narrative": "Teams can now declare Copier modules in their repo overlays — GitWeave renders and commits them atomically via the Git Trees API with no pull request. The `gw plan` command shows what would be added or updated before any write occurs; `gw apply` commits the rendered files directly to the default branch; `gw overlay status` reads back the per-module answers file to confirm what is applied. A policy layer enforces which modules each team may request via `gw overlay request`. The rulesets 403 split ensures plan failures name the real cause — unsupported org plan versus missing token permission — so operators act on accurate information.",
   "checkpoints": [
     {
       "form": "cli-before-after",
-      "caption": "Quality gate passes across structure, overlay schema, and copier schema tests",
+      "caption": "gw plan reports overlay modules to add before and after the change",
+      "acRef": "WI-8",
+      "command": "gw plan"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Primary quality gate: structure, overlay schema, copier schema all green",
       "acRef": "WI-12",
       "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
     },
     {
       "form": "api-before-after",
-      "caption": "Rulesets field reports unsupported (not a raw 403 error) in org JSON",
-      "acRef": "WI-1",
-      "command": "gw org rulesets --json"
+      "caption": "gw apply --json shows overlay modules applied with no pull request",
+      "acRef": "WI-6",
+      "command": "gw apply --json"
     },
     {
       "form": "cli-before-after",
-      "caption": "Plan shows overlay diff — files to add for unmodified repo, unchanged for matched repo",
-      "acRef": "WI-8",
-      "command": "gw plan"
-    },
-    {
-      "form": "api-before-after",
-      "caption": "Org repos list confirms overlay-test repo exists post-apply",
-      "acRef": "WI-6",
-      "command": "gw org repos --json"
+      "caption": "git ls-files confirms gitweave.egg-info is gitignored and apply-overlays.py is deleted",
+      "acRef": "WI-1",
+      "command": "git ls-files"
     }
   ]
 }
