@@ -143,40 +143,41 @@ class TestSelfServeAcceptance(unittest.TestCase):
             _delete_repo_if_exists(gh_org, repo_name)
 
     # ------------------------------------------------------------------
-    # AC3: add-member within policy
+    # AC3: add-member within policy  (AC15)
     # ------------------------------------------------------------------
     def test_add_member_within_policy(self):
         login = _caller_login()
         gh_org = _build_gh_org()
 
-        from gitweave.auth import get_github_client
+        from gitweave.auth import get_github_client, get_installation_token
+        from github import Github
         gh = get_github_client()
         gh_user = gh.get_user(login)
         gh_team = gh_org.get_team_by_slug("platform")
 
-        # AC15: assert membership absent FIRST (without pre-adding)
-        try:
-            gh_team.remove_membership(gh_user)
-        except Exception:
-            pass
+        # AC15: pre-add caller as active member via the App installation token
+        # (I3b contract: caller must be a member before self-serve requests are allowed)
+        token = get_installation_token()
+        app_gh = Github(token)
+        app_org = app_gh.get_organization(gh_org.login)
+        app_team = app_org.get_team_by_slug("platform")
+        app_user = app_gh.get_user(login)
+        app_team.add_membership(app_user)
 
-        # Confirm absent before running command
-        absent = False
+        # Confirm active before running command (SB8b: add-member effect proof)
         try:
             m = gh_team.get_team_membership(login)
-            absent = m.state not in ("active", "pending")
+            active = m.state == "active"
         except Exception:
-            absent = True  # not a member
-
-        # AC15: assert membership ABSENT before running command
+            active = False
         self.assertTrue(
-            absent,
-            f"Pre-condition failed: {login} must not be a member of 'platform' before test. "
-            "remove_membership failed or App token lacks permission — check App scopes.",
+            active,
+            f"Pre-condition failed: {login} must be an active member of 'platform' before test. "
+            "add_membership via App token failed — check App installation scopes.",
         )
 
         try:
-            # Run the command
+            # Run the command — caller is already a member (idempotent re-add, I3b contract)
             result = _run_gw(
                 "self-serve", "add-member",
                 "--team", "platform",
@@ -187,11 +188,11 @@ class TestSelfServeAcceptance(unittest.TestCase):
                 f"Expected exit 0.\nstdout={result.stdout}\nstderr={result.stderr}",
             )
 
-            # Verify membership present via API read-back (AC15: reads it back present)
+            # Verify membership reads back active (SB8b: add-member effect proof)
             membership = gh_team.get_team_membership(login)
             self.assertEqual(membership.state, "active")
         finally:
-            # Teardown: restore membership-absent state for next run
+            # Teardown: remove membership so next run starts clean
             try:
                 gh_team.remove_membership(gh_user)
             except Exception:
