@@ -261,7 +261,7 @@ class TestOverlayRequest(unittest.TestCase):
         with _patch("gitweave.managers.overlays.render_module", side_effect=_fake_render):
             result = self_serve_overlay_request(
                 team="team-a",
-                repo="test-org/target-repo",
+                repo="target-repo",
                 module_name="python_service",
                 gh_org=mock_org,
                 policy=mock_policy,

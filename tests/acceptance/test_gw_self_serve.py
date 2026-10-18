@@ -168,20 +168,34 @@ class TestSelfServeAcceptance(unittest.TestCase):
         except Exception:
             absent = True  # not a member
 
-        # Run the command
-        result = _run_gw(
-            "self-serve", "add-member",
-            "--team", "platform",
-            "--member", login,
-        )
-        self.assertEqual(
-            result.returncode, 0,
-            f"Expected exit 0.\nstdout={result.stdout}\nstderr={result.stderr}",
+        # AC15: assert membership ABSENT before running command
+        self.assertTrue(
+            absent,
+            f"Pre-condition failed: {login} must not be a member of 'platform' before test. "
+            "remove_membership failed or App token lacks permission — check App scopes.",
         )
 
-        # Verify membership present via API read-back
-        membership = gh_team.get_team_membership(login)
-        self.assertEqual(membership.state, "active")
+        try:
+            # Run the command
+            result = _run_gw(
+                "self-serve", "add-member",
+                "--team", "platform",
+                "--member", login,
+            )
+            self.assertEqual(
+                result.returncode, 0,
+                f"Expected exit 0.\nstdout={result.stdout}\nstderr={result.stderr}",
+            )
+
+            # Verify membership present via API read-back (AC15: reads it back present)
+            membership = gh_team.get_team_membership(login)
+            self.assertEqual(membership.state, "active")
+        finally:
+            # Teardown: restore membership-absent state for next run
+            try:
+                gh_team.remove_membership(gh_user)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # AC4: policy exception roundtrip
