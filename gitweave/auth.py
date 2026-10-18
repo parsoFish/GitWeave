@@ -3,8 +3,16 @@
 import json
 import os
 import subprocess
+import time
 import urllib.request
 from github import Github, Auth
+
+# Module-level token cache — valid for one process lifetime.
+# Each `gw overlay apply` subprocess needs only one installation token; without
+# caching, get_installation_token() makes a fresh JWT exchange per API call
+# (8+ per apply), which trips GitHub's connection-level throttling.
+_cached_token: str | None = None
+_cached_token_expiry: float = 0.0
 
 
 class CallerTokenRequiredError(EnvironmentError):
@@ -113,10 +121,22 @@ def get_installation_auth() -> Auth.AppInstallationAuth:
 def get_installation_token() -> str:
     """Return the GitHub App installation access token string.
 
+    The token is cached for the process lifetime (with a 5-minute early-expiry
+    buffer).  Without caching, each API call made by the live transport handler
+    would exchange a fresh JWT for a new installation token, hitting GitHub's
+    connection-level throttle on the /installations/{id}/access_tokens endpoint.
+
     AppInstallationAuth.token requires withRequester() to be called first,
     which happens inside Github(auth=...).  We create a client to prime the
     requester, then read the token back from our local auth reference.
     """
+    global _cached_token, _cached_token_expiry
+
+    # Return cached token if still fresh (5-minute buffer before expiry).
+    now = time.monotonic()
+    if _cached_token is not None and now < _cached_token_expiry:
+        return _cached_token
+
     env = _check_env()
 
     key_path = env["GW_APP_PRIVATE_KEY_PATH"]
@@ -139,7 +159,13 @@ def get_installation_token() -> str:
     # Github.__init__ calls install_auth.withRequester(requester), enabling
     # install_auth.token to exchange the JWT for an installation access token.
     Github(auth=install_auth)
-    return install_auth.token
+    token = install_auth.token
+
+    # Cache for 55 minutes (tokens are valid for 1 hour; 5-minute buffer).
+    _cached_token = token
+    _cached_token_expiry = now + 3300
+
+    return token
 
 
 def get_github_client() -> Github:
