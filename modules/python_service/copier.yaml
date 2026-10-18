@@ -1,0 +1,21 @@
+_metadata:
+  name: python_service
+  version: "20261018.0"
+  min_copier_version: "9.0.0"
+  description: "Standard Python service module with CI workflow"
+
+repo_name:
+  type: str
+  help: "Repository name (used as the top-level directory in the rendered tree)"
+  default: my_repo
+
+service_name:
+  type: str
+  help: "Snake-case name of the service"
+  default: my_service
+
+python_version:
+  type: str
+  help: "Python version to target"
+  default: "3.11"
+  choices: ["3.11", "3.12"]

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from gitweave.managers.org import OrgSettingsManager, ORG_DEFAULTS, ResourceStatus
 from gitweave.managers.teams import TeamsManager
 from gitweave.managers.repos import ReposManager
-from gitweave.managers.rulesets import RulesetsManager
+from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError
 
 
 @dataclass
@@ -38,9 +38,12 @@ def reset(gh_org) -> ResetResult:
         result.statuses.append(repos_mgr.delete(repo.name))
 
     rulesets_mgr = RulesetsManager(gh_org)
-    for rs in rulesets_mgr.list_managed():
-        changed = True
-        result.statuses.append(rulesets_mgr.delete(rs["name"]))
+    try:
+        for rs in rulesets_mgr.list_managed():
+            changed = True
+            result.statuses.append(rulesets_mgr.delete(rs["name"]))
+    except RulesetsUnsupportedError:
+        pass  # org plan does not support rulesets — nothing to reset
 
     # Restore org settings to GitHub safe defaults (only when they differ)
     org_mgr = OrgSettingsManager(gh_org)

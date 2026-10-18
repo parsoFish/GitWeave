@@ -8,7 +8,7 @@ import sys
 from gitweave.plan import plan
 from gitweave.apply import apply
 from gitweave.reset import reset
-from gitweave.auth import get_github_client, get_caller_token, resolve_caller_login
+from gitweave.auth import get_github_client, get_caller_token, resolve_caller_login, get_installation_token
 from gitweave.auth import CallerTokenRequiredError
 from gitweave.policy import PolicyLoader, PolicyDenied, PolicyError
 from gitweave.self_serve.new_repo import self_serve_new_repo
@@ -25,7 +25,10 @@ def _get_org_client():
 def cmd_plan(args):
     try:
         result = plan(fixture_path=getattr(args, "fixture", None))
-        result.print()
+        if getattr(args, "json", False):
+            print(result.to_json())
+        else:
+            result.print()
         sys.exit(0)
     except EnvironmentError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -92,8 +95,12 @@ def cmd_org_teams(args):
 
 
 def cmd_org_rulesets(args):
-    from gitweave.managers.rulesets import RulesetsManager
-    print(json.dumps(RulesetsManager(_get_org_client()).list_managed(), indent=2))
+    from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError
+    try:
+        print(json.dumps(RulesetsManager(_get_org_client()).list_managed(), indent=2))
+    except RulesetsUnsupportedError:
+        # Org plan does not support rulesets — return empty list (no rulesets exist)
+        print(json.dumps([], indent=2))
 
 
 def _self_serve_auth():
@@ -199,12 +206,110 @@ def cmd_self_serve_list_exceptions(args):
         sys.exit(1)
 
 
-def main():
+def cmd_overlay_apply(args):
+    from gitweave.managers.overlays import apply_overlays_for_repo, BranchProtectedError
+    try:
+        gh_org = _get_org_client()
+        results = apply_overlays_for_repo(args.repo, gh_org)
+        for r in results:
+            print(f"  {r.action}: {r.repo} — {r.message}")
+        sys.exit(0)
+    except BranchProtectedError as e:
+        print(
+            f"Error: {e.repo} branch '{e.branch}' is protected: {e.protection}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_overlay_status(args):
+    from gitweave.managers.overlays import get_overlay_status
+    try:
+        gh_org = _get_org_client()
+        gh_repo = gh_org.get_repo(args.repo)
+        modules = get_overlay_status(gh_repo)
+        if not modules:
+            print("No modules applied.")
+        else:
+            for m in modules:
+                print(f"  {m['name']} @ {m['version']}")
+                for k, v in (m.get("inputs") or {}).items():
+                    print(f"    {k}: {v}")
+        sys.exit(0)
+    except EnvironmentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_overlay_request(args):
+    from gitweave.self_serve.overlay_request import (
+        self_serve_overlay_request,
+        OverlayRequestDenied,
+    )
+    from gitweave.policy import PolicyError
+    from gitweave.transport import RecordingTransport
+    import requests as _req
+
+    def _live_handler(method, url, **kwargs):
+        headers = kwargs.pop("headers", {})
+        headers["Authorization"] = f"Bearer {get_installation_token()}"
+        resp = _req.request(method, url, headers=headers, **kwargs)
+        if resp.status_code == 404:
+            return None  # resource not found is valid (e.g. .copier-answers.yml absent)
+        resp.raise_for_status()
+        return resp.json()
+
+    transport = RecordingTransport(handler=_live_handler)
+
+    try:
+        gh_org, policy, caller_login = _self_serve_auth()
+        result = self_serve_overlay_request(
+            args.team, args.repo, args.module, gh_org, policy, caller_login,
+            transport=transport,
+        )
+        import json
+        print(json.dumps(result))
+        sys.exit(0)
+    except CallerTokenRequiredError as e:
+        print(f"caller-token-required: {e}", file=sys.stderr)
+        sys.exit(1)
+    except (PolicyError, OverlayRequestDenied) as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_module_render(args):
+    from gitweave.module_render import render_module, CopierVersionError
+    data = {}
+    for pair in (args.data or []):
+        k, _, v = pair.partition("=")
+        data[k.strip()] = v.strip()
+    try:
+        render_module(args.name, args.dest, data=data)
+        sys.exit(0)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except CopierVersionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the gw argument parser without consuming argv.
+
+    Extracted from main() so tests can walk the parser tree to enumerate
+    registered subcommands and verify permission-check coverage.
+    """
     parser = argparse.ArgumentParser(prog="gw", description="GitWeave org controller")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_plan = sub.add_parser("plan", help="Diff declaration against org state")
     p_plan.add_argument("--fixture", metavar="PATH")
+    p_plan.add_argument("--json", action="store_true")
     p_plan.set_defaults(func=cmd_plan)
 
     p_apply = sub.add_parser("apply", help="Apply declaration to live org")
@@ -260,12 +365,60 @@ def main():
     p_ae.set_defaults(func=cmd_self_serve_add_exception)
 
     p_le = ss_sub.add_parser("list-exceptions", help="List policy exceptions for a repo")
-    p_le.add_argument("--team", required=True, metavar="TEAM")
+    p_le.add_argument("--team", metavar="TEAM")  # optional: omit to list all teams
     p_le.add_argument("--repo", required=True, metavar="REPO")
     p_le.set_defaults(func=cmd_self_serve_list_exceptions)
 
+    # module subcommands
+    p_mod = sub.add_parser("module", help="Copier module operations")
+    mod_sub = p_mod.add_subparsers(dest="mod_command", required=True)
+
+    p_mr = mod_sub.add_parser("render", help="Render a module offline to a destination")
+    p_mr.add_argument("name", metavar="NAME", help="Module name (snake_case)")
+    p_mr.add_argument("--dest", required=True, metavar="DIR", help="Destination directory")
+    p_mr.add_argument(
+        "--data",
+        metavar="KEY=VALUE",
+        nargs="*",
+        default=[],
+        help="Override copier question answers (key=value pairs)",
+    )
+    p_mr.set_defaults(func=cmd_module_render)
+
+    # overlay subcommands
+    p_ov = sub.add_parser("overlay", help="Module overlay operations")
+    ov_sub = p_ov.add_subparsers(dest="ov_command", required=True)
+
+    p_oa = ov_sub.add_parser("apply", help="Apply declared overlays for a repo")
+    p_oa.add_argument("repo", metavar="REPO", help="Repository name")
+    p_oa.set_defaults(func=cmd_overlay_apply)
+
+    p_os = ov_sub.add_parser("status", help="Show applied overlay modules for a repo")
+    p_os.add_argument("repo", metavar="REPO", help="Repository name")
+    p_os.set_defaults(func=cmd_overlay_status)
+
+    p_or = ov_sub.add_parser("request", help="Request a module for a team repo")
+    p_or.add_argument("--team", required=True, metavar="SLUG")
+    p_or.add_argument("--repo", required=True, metavar="REPO")
+    p_or.add_argument("--module", required=True, metavar="NAME")
+    p_or.set_defaults(func=cmd_overlay_request)
+
+    return parser
+
+
+def main():
+    import sys as _sys
+    # When run as `python -m gitweave.cli`, __name__ == '__main__' and CPython
+    # executes the module body in a fresh namespace distinct from the cached
+    # sys.modules['gitweave.cli'] entry that sitecustomize already patched.
+    # Prefer 'gitweave.cli' so test patches (e.g. sitecustomize mutants) are
+    # visible; fall back to __name__ for the entry-point / direct-import path.
+    _self = _sys.modules.get('gitweave.cli', _sys.modules[__name__])
+    parser = _build_parser()
     args = parser.parse_args()
-    args.func(args)
+    func_name = getattr(args.func, "__name__", None)
+    func = getattr(_self, func_name, args.func) if func_name else args.func
+    func(args)
 
 
 if __name__ == "__main__":

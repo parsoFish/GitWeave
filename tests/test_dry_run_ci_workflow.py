@@ -1,20 +1,11 @@
 """
-Tests for the CI job that runs apply-overlays.py --dry-run as a smoke gate.
+Tests for the CI dry-run smoke job.
 
-These tests verify that a CI job exists which:
-  - runs 'apply-overlays.py --dry-run' against config/repos/example.yaml
-  - uses 'set -e' (or 'set -euo pipefail') so any sub-command failure fails the job
-  - captures stdout and greps for the repository name declared in example.yaml
-  - captures stdout and greps for the string 'example-template'
-  - does NOT use continue-on-error (failures must block the PR)
-  - has least-privilege permissions (contents: read)
-  - runs on ubuntu-latest
-  - triggers on pull_request (without path restriction) and push to main
+The job must invoke 'gw plan' (not apply-overlays.py) with an offline fixture,
+run credential-free, and assert the plan output contains an overlay verdict.
 
-The job may live in ci.yaml (as a new job named 'dry-run-smoke' or similar) or
-in a dedicated .github/workflows/dry-run-smoke.yaml workflow.
-
-All tests fail until the CI job is added (TDD red phase).
+Prior to WI-8, the job called 'apply-overlays.py --dry-run'.
+WI-8 retires that script and replaces it with 'gw plan --fixture'.
 """
 
 import os
@@ -63,7 +54,7 @@ def _find_dry_run_smoke_job(doc: dict) -> dict | None:
 
     A job matches if:
       - its key or display name contains 'dry' and 'run', OR 'smoke', OR
-      - one of its steps invokes 'apply-overlays' with '--dry-run'.
+      - one of its steps invokes 'gw plan' or 'apply-overlays'.
 
     Returns None if no such job is found.
     """
@@ -71,10 +62,11 @@ def _find_dry_run_smoke_job(doc: dict) -> dict | None:
         name_tokens = f"{job_id} {job.get('name', '')}".lower()
         if ("dry" in name_tokens and "run" in name_tokens) or "smoke" in name_tokens:
             return job
-        # Also match by step content — some implementations name the job generically.
+        # Also match by step content.
         for step in job.get("steps", []):
             run = str(step.get("run", ""))
-            if "apply-overlays" in run and "--dry-run" in run:
+            if ("gw plan" in run or "gitweave.cli plan" in run
+                    or ("apply-overlays" in run and "--dry-run" in run)):
                 return job
     return None
 
@@ -244,32 +236,36 @@ class TestDryRunSmokeJobCommand(unittest.TestCase):
         return "\n".join(str(s.get("run", "")) for s in self.all_steps)
 
     def test_job_invokes_apply_overlays_script(self):
-        """A step must invoke the apply-overlays.py script."""
+        """A step must invoke gw plan (replaces apply-overlays.py since WI-8)."""
         run_text = self._steps_run_text()
-        self.assertIn(
-            "apply-overlays",
-            run_text,
-            "No step invokes 'apply-overlays.py' or 'apply-overlays'. "
-            "The dry-run smoke job must call the overlay application script.",
+        invokes_plan = (
+            "gw plan" in run_text
+            or "gitweave.cli plan" in run_text
+            or "python -m gitweave.cli plan" in run_text
+        )
+        self.assertTrue(
+            invokes_plan,
+            "No step invokes 'gw plan'. "
+            "Since WI-8, the dry-run smoke job must call gw plan, not apply-overlays.py.",
         )
 
     def test_job_passes_dry_run_flag_to_script(self):
-        """The script must be called with the --dry-run flag."""
+        """The job must use a fixture for offline operation (replaces --dry-run)."""
         run_text = self._steps_run_text()
-        self.assertIn(
-            "--dry-run",
-            run_text,
-            "No step passes '--dry-run' to apply-overlays.py. "
-            "The smoke job must run in dry-run mode to avoid touching external repos.",
+        uses_fixture = "--fixture" in run_text or "fixture" in run_text
+        self.assertTrue(
+            uses_fixture,
+            "No step uses a fixture for offline plan. "
+            "Since WI-8, gw plan --fixture is the credential-free dry-run method.",
         )
 
     def test_job_targets_config_repos_example_yaml(self):
-        """The dry-run step must target config/repos/example.yaml specifically."""
+        """The dry-run step must reference a fixture or fixture directory."""
         run_text = self._steps_run_text()
         self.assertTrue(
-            "config/repos/example.yaml" in run_text or "config/repos/" in run_text,
-            "No step references 'config/repos/example.yaml' or 'config/repos/'. "
-            "The dry-run smoke job must pass the example overlay path to the script.",
+            "fixture" in run_text or "tests/fixtures" in run_text,
+            "No step references a fixture file for gw plan. "
+            "The dry-run smoke job must pass a fixture so it runs credential-free.",
         )
 
     def test_job_uses_set_e_to_propagate_failures(self):
@@ -376,41 +372,32 @@ class TestDryRunSmokeJobIntegration(unittest.TestCase):
     """
 
     def test_apply_overlays_script_is_referenced_correctly_in_workflow(self):
-        """
-        The script path referenced in the workflow step must match the actual
-        location of apply-overlays.py in the repository.
-        """
+        """Since WI-8, the step must invoke gw plan, not apply-overlays.py."""
         _, doc = _find_dry_run_workflow()
         job = _find_dry_run_smoke_job(doc)
         steps = job.get("steps", [])
         run_text = "\n".join(str(s.get("run", "")) for s in steps)
 
-        # Verify the step references a known path pattern for the script.
-        # Accept 'scripts/apply-overlays.py' or 'python apply-overlays.py' at root.
-        uses_script_path = (
-            "scripts/apply-overlays.py" in run_text
-            or "apply-overlays.py" in run_text
+        invokes_plan = (
+            "gw plan" in run_text
+            or "gitweave.cli plan" in run_text
         )
         self.assertTrue(
-            uses_script_path,
-            "The dry-run smoke job does not reference 'apply-overlays.py' by path. "
-            "The step must invoke the script at its actual location "
-            "(e.g., 'python scripts/apply-overlays.py --dry-run ...').",
+            invokes_plan,
+            "The dry-run smoke job does not invoke 'gw plan'. "
+            "Since WI-8, apply-overlays.py is retired and gw plan is used.",
         )
 
     def test_config_repos_example_yaml_is_referenced_in_workflow(self):
-        """
-        The step must reference config/repos/example.yaml (or config/repos/)
-        so there is no ambiguity about which overlay file is being tested.
-        """
+        """Since WI-8, the step must reference a fixture (not config/repos directly)."""
         _, doc = _find_dry_run_workflow()
         job = _find_dry_run_smoke_job(doc)
         steps = job.get("steps", [])
         run_text = "\n".join(str(s.get("run", "")) for s in steps)
         self.assertTrue(
-            "config/repos" in run_text,
-            "The dry-run smoke job step does not reference 'config/repos' in its run command. "
-            "The step must explicitly target config/repos/example.yaml.",
+            "fixture" in run_text or "tests/fixtures" in run_text,
+            "The dry-run smoke job step does not reference a fixture file. "
+            "Since WI-8, gw plan uses --fixture for offline credential-free runs.",
         )
 
     def test_ci_yaml_yamllint_step_covers_new_dry_run_workflow_if_dedicated(self):

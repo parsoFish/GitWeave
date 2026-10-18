@@ -40,3 +40,21 @@ teams:
       - environments
       - topics
       - description
+
+  - slug: example-team
+    allowed_request_types:
+      - new-repo
+      - content-update
+    allowed_repo_patterns:
+      - "example-*"
+      - "gw-*"
+    allowed_modules:
+      - python_service
+
+  - slug: restricted-team
+    allowed_request_types:
+      - new-repo
+    allowed_repo_patterns:
+      - "restricted-*"
+    allowed_modules:
+      - terraform_module

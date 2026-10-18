@@ -37,6 +37,10 @@ POLICY_SCHEMA = {
                         "type": "array",
                         "items": {"type": "string"},
                     },
+                    "allowed_modules": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
                 },
             },
         }
@@ -89,6 +93,18 @@ class PolicyLoader:
             ) from exc
 
         return data
+
+    def allowed_modules_for_team(self, team_slug: str) -> list[str]:
+        """Return the list of allowed module names for *team_slug*.
+
+        Returns an empty list if the team is absent or has no allowed_modules.
+        """
+        policy = self.load()
+        teams: list[dict] = policy.get("teams", [])
+        team_cfg = next((t for t in teams if t.get("slug") == team_slug), None)
+        if team_cfg is None:
+            return []
+        return list(team_cfg.get("allowed_modules", []))
 
 
 def check_permission(

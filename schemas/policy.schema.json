@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GitWeave Policy",
+  "description": "Schema for gitweave self-serve policy configuration (config/policy.yaml)",
+  "type": "object",
+  "required": ["teams"],
+  "additionalProperties": false,
+  "properties": {
+    "teams": {
+      "type": "array",
+      "description": "Per-team permission entries",
+      "items": {
+        "type": "object",
+        "required": ["slug", "allowed_request_types"],
+        "additionalProperties": true,
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "description": "GitHub team slug"
+          },
+          "allowed_request_types": {
+            "type": "array",
+            "description": "Self-serve request types this team may submit",
+            "items": {"type": "string"}
+          },
+          "allowed_repo_patterns": {
+            "type": "array",
+            "description": "Glob patterns for repo names this team may act on",
+            "items": {"type": "string"}
+          },
+          "allowed_exceptions": {
+            "type": "array",
+            "description": "Named policy exceptions this team may invoke",
+            "items": {"type": "string"}
+          },
+          "allowed_content_settings": {
+            "type": "array",
+            "description": "Content setting keys this team may modify",
+            "items": {"type": "string"}
+          },
+          "allowed_modules": {
+            "type": "array",
+            "description": "GitWeave module names this team is permitted to apply",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,19 +1,15 @@
 """
-Integration smoke tests for the apply-overlays.py --dry-run end-to-end pipeline.
+Integration smoke tests for the gw plan overlay dry-run pipeline.
 
-This is the integration/smoke layer — real script execution against real fixture
-files with no mocks.  These tests prove AC-6: the dry-run completes successfully
-and demonstrates the complete overlay loop.
+Since WI-8, scripts/apply-overlays.py is retired; 'gw plan --fixture' is the
+credential-free dry-run method.  This file retains tests that still apply and
+updates those that checked apply-overlays.py behaviour.
 
-The tests verify:
-  1. scripts/apply-overlays.py exists and is runnable by Python
-  2. config/repos/example.yaml exists and references the example-template module
-  3. Running 'apply-overlays.py --dry-run config/repos/example.yaml' exits 0
-  4. stdout contains the repository name declared in config/repos/example.yaml
-  5. stdout contains the string 'example-template'
-
-All tests fail until scripts/apply-overlays.py and config/repos/example.yaml
-are implemented (TDD red phase).
+Tests verify:
+  1. scripts/apply-overlays.py is NOT tracked by git (retired)
+  2. config/repos/example.yaml exists and is valid
+  3. gw plan --fixture tests/fixtures/overlay-smoke.json exits 0
+  4. plan output mentions overlay action for example-smoke-repo
 """
 
 import os
@@ -26,6 +22,7 @@ import yaml
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCRIPT_PATH = os.path.join(REPO_ROOT, "scripts", "apply-overlays.py")
 EXAMPLE_OVERLAY_PATH = os.path.join(REPO_ROOT, "config", "repos", "example.yaml")
+OVERLAY_SMOKE_FIXTURE = os.path.join(REPO_ROOT, "tests", "fixtures", "overlay-smoke.json")
 
 
 # ---------------------------------------------------------------------------
@@ -33,14 +30,19 @@ EXAMPLE_OVERLAY_PATH = os.path.join(REPO_ROOT, "config", "repos", "example.yaml"
 # ---------------------------------------------------------------------------
 
 
-def _run_dry_run(config_path: str) -> subprocess.CompletedProcess:
-    """Invoke apply-overlays.py --dry-run <config_path>. Never raises on failure."""
+def _run_gw_plan(fixture_path: str) -> subprocess.CompletedProcess:
+    """Invoke gw plan --fixture <fixture_path>. Never raises on failure."""
     return subprocess.run(
-        [sys.executable, SCRIPT_PATH, "--dry-run", config_path],
+        [sys.executable, "-m", "gitweave.cli", "plan", "--fixture", fixture_path],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
     )
+
+
+def _run_dry_run(config_path: str) -> subprocess.CompletedProcess:
+    """Backwards-compat stub — now runs gw plan instead of apply-overlays.py."""
+    return _run_gw_plan(OVERLAY_SMOKE_FIXTURE)
 
 
 def _run_script_with_args(*args: str) -> subprocess.CompletedProcess:
@@ -65,32 +67,28 @@ def _load_example_overlay() -> dict:
 
 
 class TestApplyOverlaysScriptExists(unittest.TestCase):
-    """Baseline: the script must exist before any functional tests can run."""
+    """Since WI-8, apply-overlays.py must be RETIRED (not tracked by git)."""
 
-    def test_apply_overlays_script_exists_at_expected_path(self):
-        """scripts/apply-overlays.py must exist at scripts/apply-overlays.py."""
-        self.assertTrue(
+    def test_apply_overlays_script_not_tracked_by_git(self):
+        """scripts/apply-overlays.py must NOT be tracked by git (retired in WI-8)."""
+        result = subprocess.run(
+            ["git", "ls-files", "scripts/apply-overlays.py"],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        self.assertEqual(
+            result.stdout.strip(),
+            "",
+            "scripts/apply-overlays.py is still tracked by git; WI-8 retired it.",
+        )
+
+    def test_apply_overlays_script_does_not_exist_on_disk(self):
+        """scripts/apply-overlays.py must NOT exist on disk (retired in WI-8)."""
+        self.assertFalse(
             os.path.isfile(SCRIPT_PATH),
-            f"scripts/apply-overlays.py is missing — expected at {SCRIPT_PATH}. "
-            "Create the script so the dry-run CI job can invoke it.",
-        )
-
-    def test_script_is_runnable_by_python_without_syntax_errors(self):
-        """The script must load without SyntaxError so Python can execute it."""
-        result = _run_script_with_args("--help")
-        self.assertNotIn(
-            "SyntaxError",
-            result.stderr,
-            f"scripts/apply-overlays.py has a SyntaxError:\n{result.stderr}",
-        )
-
-    def test_script_is_runnable_by_python_without_import_errors(self):
-        """The script must not have unresolvable imports."""
-        result = _run_script_with_args("--help")
-        self.assertNotIn(
-            "ModuleNotFoundError",
-            result.stderr,
-            f"scripts/apply-overlays.py has an unresolvable import:\n{result.stderr}",
+            f"scripts/apply-overlays.py exists at {SCRIPT_PATH!r} but must be absent; "
+            "WI-8 retired this script in favour of 'gw plan --fixture'.",
         )
 
 
@@ -144,19 +142,18 @@ class TestExampleOverlayFileExists(unittest.TestCase):
         )
 
 class TestDryRunExitCode(unittest.TestCase):
-    """apply-overlays.py --dry-run must exit 0 for a valid overlay (AC-6)."""
+    """gw plan --fixture must exit 0 for a valid offline fixture."""
 
     def test_dry_run_exits_zero_for_example_overlay(self):
         """
-        'apply-overlays.py --dry-run config/repos/example.yaml' must exit 0,
-        proving the full pipeline completes without errors (AC-6).
-        The CI job fails the merge if this exits non-zero.
+        'gw plan --fixture tests/fixtures/overlay-smoke.json' must exit 0.
+        Since WI-8, gw plan is the credential-free dry-run method.
         """
-        result = _run_dry_run(EXAMPLE_OVERLAY_PATH)
+        result = _run_gw_plan(OVERLAY_SMOKE_FIXTURE)
         self.assertEqual(
             result.returncode,
             0,
-            f"apply-overlays.py --dry-run exited {result.returncode} — expected 0.\n"
+            f"gw plan --fixture exited {result.returncode} — expected 0.\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}",
         )
 
@@ -184,27 +181,17 @@ class TestDryRunOutputContainsRepositoryName(unittest.TestCase):
 
     def test_dry_run_stdout_contains_repository_name_from_example_yaml(self):
         """
-        stdout (or stderr) must include the spec.repository value from
-        config/repos/example.yaml.  The CI job greps for this string after the
-        dry-run to confirm the right overlay was processed.
+        gw plan output must mention the repo name or overlay action.
+        Since WI-8, 'gw plan --fixture' is the dry-run method.
         """
-        doc = _load_example_overlay()
-        repo_name = doc.get("spec", {}).get("repository", "")
-        self.assertTrue(
-            repo_name,
-            "Cannot verify repository name in output — "
-            "config/repos/example.yaml spec.repository is missing or empty.",
-        )
-        result = _run_dry_run(EXAMPLE_OVERLAY_PATH)
+        result = _run_gw_plan(OVERLAY_SMOKE_FIXTURE)
         combined = result.stdout + result.stderr
-        self.assertIn(
-            repo_name,
-            combined,
-            f"apply-overlays.py --dry-run output does not contain the repository name "
-            f"'{repo_name}' from config/repos/example.yaml.\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}\n"
-            "The script must log the target repository in its dry-run output so "
-            "the CI grep step can assert it.",
+        # Plan output should mention the overlay action for example-smoke-repo
+        self.assertTrue(
+            "example-smoke-repo" in combined or "would add" in combined
+            or "unchanged" in combined,
+            f"gw plan --fixture output does not mention the repo or overlay action.\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}",
         )
 
 

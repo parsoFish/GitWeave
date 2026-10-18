@@ -18,6 +18,9 @@ __pycache__/
 .venv/
 venv/
 
+# GitWeave build artifacts
+gitweave.egg-info/
+
 # GitWeave
 .specify/memory/current_task.md
 LOCAL_SETUP.md

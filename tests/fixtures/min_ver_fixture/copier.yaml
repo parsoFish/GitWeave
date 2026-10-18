@@ -1,0 +1,10 @@
+_metadata:
+  name: min_ver_fixture
+  version: "20261017.0"
+  min_copier_version: "999.0.0"
+  description: "Fixture module with impossibly high min_copier_version for testing"
+
+greeting:
+  type: str
+  help: "Greeting text"
+  default: hello

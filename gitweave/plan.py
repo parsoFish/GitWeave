@@ -13,10 +13,13 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Literal
 
+import yaml
+
 from gitweave.auth import get_github_client
 from gitweave.config import load_config
 
 Action = Literal["create", "update", "delete", "unchanged"]
+OverlayAction = Literal["add", "update", "unchanged", "skip"]
 
 
 @dataclass
@@ -28,8 +31,32 @@ class PlanItem:
 
 
 @dataclass
+class OverlayPlanItem:
+    repo_name: str
+    action: OverlayAction
+    module_name: str = ""
+    module_version: str = ""
+    file_count: int = 0
+
+    def format_line(self) -> str:
+        if self.action == "add":
+            ver = f" @ {self.module_version}" if self.module_version else ""
+            files = f" ({self.file_count} files)" if self.file_count else ""
+            return f"  {self.repo_name}: would add [{self.module_name}{ver}]{files}"
+        if self.action == "update":
+            ver = f" @ {self.module_version}" if self.module_version else ""
+            return f"  {self.repo_name}: update ({self.module_name}{ver})"
+        if self.action == "unchanged":
+            ver = f" @ {self.module_version}" if self.module_version else ""
+            return f"  {self.repo_name}: unchanged ({self.module_name}{ver})"
+        return f"  {self.repo_name}: skip (no modules declared)"
+
+
+@dataclass
 class PlanResult:
     items: list[PlanItem] = field(default_factory=list)
+    overlay_items: list[OverlayPlanItem] = field(default_factory=list)
+    rulesets_unsupported: str = ""  # non-empty → org plan lacks rulesets; carries API message
 
     def print(self) -> None:
         """Print human-readable diff: + create, ~ update, - delete, = unchanged."""
@@ -40,22 +67,181 @@ class PlanResult:
                 f"  {sym} {item.resource_type}/{item.name}"
                 + (f": {item.detail}" if item.detail else "")
             )
+        if self.overlay_items:
+            print("Overlays:")
+            for oi in self.overlay_items:
+                print(oi.format_line())
+
+    def to_json(self) -> str:
+        """Return JSON representation with rulesets and overlays fields.
+
+        When the org plan does not support rulesets, ``rulesets`` is a string
+        of the form ``"unsupported: <API message>"`` instead of a list.
+        """
+        if self.rulesets_unsupported:
+            rulesets: list | str = f"unsupported: {self.rulesets_unsupported}"
+        else:
+            rulesets = [
+                {"name": i.name, "action": i.action, "detail": i.detail}
+                for i in self.items
+                if i.resource_type == "ruleset"
+            ]
+        overlays = [
+            {
+                "repo": oi.repo_name,
+                "action": oi.action,
+                "module": oi.module_name,
+                "version": oi.module_version,
+            }
+            for oi in self.overlay_items
+        ]
+        other = [
+            {"resource_type": i.resource_type, "name": i.name, "action": i.action, "detail": i.detail}
+            for i in self.items
+            if i.resource_type != "ruleset"
+        ]
+        return json.dumps({"rulesets": rulesets, "overlays": overlays, "items": other})
+
+
+_MODULES_ROOT = pathlib.Path(__file__).parent.parent / "modules"
+_REPOS_CONFIG_ROOT = pathlib.Path(__file__).parent.parent / "config" / "repos"
+
+
+_EMPTY_SNAPSHOT: dict = {
+    "org_settings": {
+        "description": "",
+        "default_repository_permission": "read",
+        "web_commit_signoff_required": False,
+        "members_can_create_repositories": True,
+    },
+    "teams": [],
+    "repos": [],
+    "rulesets": [],
+}
 
 
 def _load_fixture(fixture_path: str) -> dict:
-    return json.loads(pathlib.Path(fixture_path).read_text())
+    raw = json.loads(pathlib.Path(fixture_path).read_text())
+    # Fill defaults so overlay-only fixtures work with _diff()
+    merged = {**_EMPTY_SNAPSHOT, **raw}
+    return merged
+
+
+def _module_file_count(module_name: str) -> int:
+    """Count renderable (non-copier-meta) files in a module directory."""
+    mod_dir = _MODULES_ROOT / module_name
+    if not mod_dir.exists():
+        return 0
+    return sum(
+        1 for p in mod_dir.rglob("*")
+        if p.is_file() and p.name != "copier.yaml"
+    )
+
+
+def _module_version(module_name: str) -> str:
+    """Return the version declared in modules/<name>/copier.yaml, or ''."""
+    copier_yaml = _MODULES_ROOT / module_name / "copier.yaml"
+    if not copier_yaml.exists():
+        return ""
+    data = yaml.safe_load(copier_yaml.read_text())
+    return data.get("_metadata", {}).get("version", "")
+
+
+def _repo_declared_modules(repo_name: str) -> list[str]:
+    """Return list of module names declared in config/repos/<repo_name>.yaml.
+
+    Searches for a yaml file whose ``metadata.name`` matches *repo_name*, or
+    whose filename stem matches (for simple name-based lookup).  Returns []
+    when not found.
+    """
+    if not _REPOS_CONFIG_ROOT.exists():
+        return []
+    for yaml_file in _REPOS_CONFIG_ROOT.glob("*.yaml"):
+        try:
+            data = yaml.safe_load(yaml_file.read_text()) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        name = data.get("metadata", {}).get("name", yaml_file.stem)
+        if name == repo_name:
+            return [m["name"] for m in data.get("spec", {}).get("modules", [])]
+    return []
+
+
+def _diff_overlays(fixture_repos: list[dict]) -> list[OverlayPlanItem]:
+    """Compare fixture overlay state against declared modules; return items."""
+    overlay_items: list[OverlayPlanItem] = []
+    for repo in fixture_repos:
+        repo_name = repo.get("name", "")
+        declared = _repo_declared_modules(repo_name)
+        if not declared:
+            continue  # no modules declared → skip
+        applied = repo.get("overlay")  # None = no overlay applied
+        if applied is None:
+            # No overlay applied yet; would add the first declared module
+            module_name = declared[0]
+            overlay_items.append(
+                OverlayPlanItem(
+                    repo_name=repo_name,
+                    action="add",
+                    module_name=module_name,
+                    module_version=_module_version(module_name),
+                    file_count=_module_file_count(module_name),
+                )
+            )
+        else:
+            # Overlay applied; check for drift: wrong module or stale version
+            applied_module = applied.get("_module_name", "")
+            applied_version = applied.get("_module_version", "")
+            declared_module = declared[0]
+            current_version = _module_version(declared_module)
+            if applied_module != declared_module:
+                # Module mismatch: different module applied than declared
+                action: OverlayAction = "update"
+                display_version = current_version or applied_version
+            elif current_version and applied_version != current_version:
+                # Same module but stale version
+                action = "update"
+                display_version = current_version
+            else:
+                action = "unchanged"
+                display_version = applied_version
+            overlay_items.append(
+                OverlayPlanItem(
+                    repo_name=repo_name,
+                    action=action,
+                    module_name=applied_module,
+                    module_version=display_version,
+                )
+            )
+    return overlay_items
 
 
 def _live_snapshot(gh_org: object, prefix: str) -> dict:
-    """Build snapshot dict from live org (same shape as fixture)."""
-    from gitweave.managers.teams import TeamsManager  # noqa: PLC0415
+    """Build snapshot dict from live org (same shape as fixture).
 
-    return {
+    When the org plan does not support rulesets (plan-lacking 403), a special
+    ``_rulesets_unsupported`` key is added to the returned dict carrying the
+    API message.  Callers (``plan()``) propagate this to ``PlanResult``.
+    """
+    from gitweave.managers.teams import TeamsManager  # noqa: PLC0415
+    from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError  # noqa: PLC0415
+
+    try:
+        rulesets = RulesetsManager(gh_org).list_managed()
+        rulesets_unsupported: str | None = None
+    except RulesetsUnsupportedError as exc:
+        rulesets = []
+        rulesets_unsupported = exc.message
+
+    snapshot: dict = {
         "org_settings": {},
         "teams": [{"name": t.name} for t in TeamsManager(gh_org).list_managed()],
         "repos": [],
-        "rulesets": [],
+        "rulesets": rulesets,
     }
+    if rulesets_unsupported is not None:
+        snapshot["_rulesets_unsupported"] = rulesets_unsupported
+    return snapshot
 
 
 def plan(fixture_path: str | None = None) -> PlanResult:
@@ -80,7 +266,19 @@ def plan(fixture_path: str | None = None) -> PlanResult:
         gh = get_github_client()
         snapshot = _live_snapshot(gh.get_organization(gw_org), prefix)
 
-    return _diff(cfg, snapshot, prefix)
+    result = _diff(cfg, snapshot, prefix)
+
+    # Propagate rulesets-unsupported marker (only possible from live snapshot).
+    if "_rulesets_unsupported" in snapshot:
+        result.rulesets_unsupported = snapshot["_rulesets_unsupported"]
+
+    if fixture_path is not None:
+        fixture_repos = snapshot.get("repos", [])
+        overlay_repos = [r for r in fixture_repos if "overlay" in r]
+        if overlay_repos:
+            result.overlay_items = _diff_overlays(overlay_repos)
+
+    return result
 
 
 def _resource_name(r: dict) -> str:

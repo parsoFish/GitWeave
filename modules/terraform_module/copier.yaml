@@ -1,0 +1,15 @@
+_metadata:
+  name: terraform_module
+  version: "20261018.0"
+  min_copier_version: "9.0.0"
+  description: "Standard Terraform module with CI workflow"
+
+module_name:
+  type: str
+  help: "Snake-case name of the Terraform module"
+  default: my_module
+
+terraform_version:
+  type: str
+  help: "Minimum Terraform version to require"
+  default: "1.5.0"

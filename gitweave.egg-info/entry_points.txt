@@ -1,2 +1,0 @@
-[console_scripts]
-gw = gitweave.cli:main

@@ -41,8 +41,11 @@ def self_serve_add_member(
 ) -> dict:
     """Add *member_login* to *team*.
 
-    Verifies caller is a current active member of *team* (using App token via gh_org).
-    Raises PolicyDenied if team not in policy, permission not allowed, or caller not a member.
+    The caller must be an active member of *team* (I3b contract).
+    Self-join without existing membership is forbidden — pre-add via the App token first.
+
+    Raises PolicyDenied if team not in policy, permission not allowed, or caller
+    is not an active team member.
     Returns {"applied": True}.
     Never opens a PR on the control repository.
 

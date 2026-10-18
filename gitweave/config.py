@@ -41,11 +41,20 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
     # Skip overlay YAML files (identified by an `apiVersion` key — those are
     # for apply-overlays.py, not for gitweave's repo manager).
     repos = []
+    overlay_repos = []
     repos_dir = root / "config" / "repos"
     if repos_dir.exists():
         for f in sorted(repos_dir.glob("*.yaml")):
             repo_cfg = yaml.safe_load(f.read_text()) or {}
             if "apiVersion" in repo_cfg:
+                # Overlay repo: use the file stem as the lookup key so that
+                # load_repo_config(short_name) finds this exact file.
+                # spec.repository is metadata about the upstream template source
+                # and may reference a different org; the file stem is canonical.
+                spec = repo_cfg.get("spec", {})
+                modules = spec.get("modules", [])
+                if modules:
+                    overlay_repos.append(f.stem)
                 continue
             repo_cfg.setdefault("slug", f.stem)
             repos.append(repo_cfg)
@@ -54,5 +63,22 @@ def load_config(root: pathlib.Path = REPO_ROOT) -> dict:
         "org_settings": org_raw,
         "teams": teams_raw.get("teams", []),
         "repos": repos,
+        "overlay_repos": overlay_repos,
         "rulesets": rulesets_raw.get("rulesets", []),
     }
+
+
+def load_repo_config(repo_name: str, root: pathlib.Path = REPO_ROOT) -> dict:
+    """Load repo overlay config from config/repos/{repo_name}.yaml.
+
+    Args:
+        repo_name: short repository name (without org prefix).
+        root: project root directory (default: auto-detected from module path).
+
+    Returns:
+        Parsed YAML dict, expected to contain ``spec.modules``.
+
+    Raises:
+        FileNotFoundError: if config/repos/{repo_name}.yaml does not exist.
+    """
+    return _load_yaml(f"config/repos/{repo_name}.yaml", root)

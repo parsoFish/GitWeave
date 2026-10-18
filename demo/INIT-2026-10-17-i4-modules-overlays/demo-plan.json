@@ -1,0 +1,29 @@
+{
+  "narrative": "Operators can now declare Copier modules in repo overlay configs; gw apply renders and commits them atomically to every matching branch via the Git Trees API — no pull requests, no partial states. gw plan previews the overlay diff offline before anything is committed. Teams request permitted modules through policy-gated self-service, and the recording transport makes the no-PR contract machine-checkable across every code path.",
+  "checkpoints": [
+    {
+      "form": "cli-before-after",
+      "caption": "gw plan shows overlay diff — would add or unchanged per declared repo",
+      "acRef": "WI-8",
+      "command": "gw plan"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "Primary quality gate green: structure, overlay schema and copier schema tests all pass",
+      "acRef": "WI-12",
+      "command": "python3 -m pytest tests/test_structure.py tests/test_overlay_schema.py tests/test_copier_schema.py tests/test_copier_schema_ci.py --deselect tests/test_structure.py::TestRepoStructure::test_bootstrap_script_exits_zero -q"
+    },
+    {
+      "form": "api-before-after",
+      "caption": "gw apply commits rendered module files to repos atomically, no pull request opened",
+      "acRef": "WI-6",
+      "command": "gw apply --json"
+    },
+    {
+      "form": "cli-before-after",
+      "caption": "git ls-files confirms no tracked files under gitweave.egg-info/ after gitignore entry added",
+      "acRef": "WI-1",
+      "command": "git ls-files"
+    }
+  ]
+}

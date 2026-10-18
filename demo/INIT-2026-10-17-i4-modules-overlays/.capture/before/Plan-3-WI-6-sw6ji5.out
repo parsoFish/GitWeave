@@ -1,0 +1,6 @@
+  ok: org_settings
+  ok: engineering
+  ok: platform
+  ERROR: forge-main-protection — org plan does not support rulesets
+[stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
+Request POST /orgs/dave-parso/rulesets failed with 403: Forbidden

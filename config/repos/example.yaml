@@ -14,4 +14,5 @@ spec:
   repository: my-org/example-smoke-repo
 
   # Template modules to apply.
-  modules: []
+  modules:
+    - name: python_service
