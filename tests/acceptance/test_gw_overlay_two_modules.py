@@ -31,8 +31,8 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 
 _MODULE_A = "python_service"
 _MODULE_B = "terraform_module"
-_MODULE_A_VERSION = "20261017.0"
-_MODULE_B_VERSION = "20261017.0"
+_MODULE_A_VERSION = "20261018.0"
+_MODULE_B_VERSION = "20261018.0"
 _MODULE_A_INPUTS = {"service_name": "two_mod_test", "python_version": "3.11"}
 _MODULE_B_INPUTS = {"env": "staging"}
 

@@ -116,7 +116,7 @@ class TestPlanOverlay:
                 "name": "example-smoke-repo",
                 "overlay": {
                     "_module_name": "python_service",
-                    "_module_version": "20261017.0",
+                    "_module_version": "20261018.0",
                     "_answers": {"service_name": "svc_example"},
                 },
             },

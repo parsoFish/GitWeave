@@ -1,6 +1,6 @@
 _metadata:
   name: python_service
-  version: "20261017.0"
+  version: "20261018.0"
   min_copier_version: "9.0.0"
   description: "Standard Python service module with CI workflow"
 

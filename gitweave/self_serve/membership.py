@@ -41,12 +41,11 @@ def self_serve_add_member(
 ) -> dict:
     """Add *member_login* to *team*.
 
-    For self-join (caller_login == member_login) no existing membership is required;
-    the policy permission alone gates the request.
-    For adding another person the caller must be an active member of *team*.
+    The caller must be an active member of *team* (I3b contract).
+    Self-join without existing membership is forbidden — pre-add via the App token first.
 
-    Raises PolicyDenied if team not in policy, permission not allowed, or (when
-    adding someone else) the caller is not an active team member.
+    Raises PolicyDenied if team not in policy, permission not allowed, or caller
+    is not an active team member.
     Returns {"applied": True}.
     Never opens a PR on the control repository.
 
@@ -56,8 +55,7 @@ def self_serve_add_member(
     check_permission(policy, team, "team-membership")
 
     gh_team = gh_org.get_team_by_slug(team)
-    if caller_login != member_login:
-        _require_caller_is_member(gh_team, caller_login, team)
+    _require_caller_is_member(gh_team, caller_login, team)
 
     _gh = gh if gh is not None else get_github_client()
     member_user = _gh.get_user(member_login)
