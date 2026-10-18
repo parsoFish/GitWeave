@@ -407,9 +407,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    import sys as _sys
+    _self = _sys.modules[__name__]
     parser = _build_parser()
     args = parser.parse_args()
-    args.func(args)
+    # Re-resolve the handler through the module so test patches (e.g. sitecustomize mutants)
+    # take effect even after the parser captured the original function object at build time.
+    func_name = getattr(args.func, "__name__", None)
+    func = getattr(_self, func_name, args.func) if func_name else args.func
+    func(args)
 
 
 if __name__ == "__main__":
