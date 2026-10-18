@@ -30,10 +30,11 @@
     },
     "teams": [],
     "repos": [],
-    "rulesets": []
+    "rulesets": {
+      "unsupported": "Upgrade to GitHub Team to enable this feature."
+    }
   }
 }
 [stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
 Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
-Request POST /orgs/dave-parso/rulesets failed with 403: Forbidden
 Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
