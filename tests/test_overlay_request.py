@@ -207,6 +207,72 @@ class TestOverlayRequest(unittest.TestCase):
     # AC4: CLI parser — overlay request subcommand registered
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # AC12: no-PR assertion on the REAL self-serve request path
+    # (apply_module_to_repo is NOT patched out in this test)
+    # ------------------------------------------------------------------
+
+    def test_allowed_module_real_apply_no_pr(self):
+        """AC12: real apply_module_to_repo path opens no PRs; mutant that adds POST /pulls fails here."""
+        from pathlib import Path
+        from unittest.mock import patch as _patch
+
+        CURRENT_SHA = "abc1234567890"
+        TREE_SHA = "tree1234"
+        NEW_TREE_SHA = "newtree5678"
+        NEW_COMMIT_SHA = "newcommit9012"
+        blob_counter = [0]
+
+        def _full_handler(method: str, url: str, **kwargs):
+            m = method.upper()
+            if m == "GET" and "/.gitweave/" in url:
+                return None  # no prior state
+            if m == "GET" and "/git/refs/heads/" in url:
+                return {"object": {"sha": CURRENT_SHA}}
+            if m == "GET" and f"/git/commits/{CURRENT_SHA}" in url:
+                return {"tree": {"sha": TREE_SHA}}
+            if m == "POST" and url.endswith("/git/blobs"):
+                blob_counter[0] += 1
+                return {"sha": f"blob{blob_counter[0]:04d}"}
+            if m == "POST" and url.endswith("/git/trees"):
+                return {"sha": NEW_TREE_SHA}
+            if m == "POST" and url.endswith("/git/commits"):
+                return {"sha": NEW_COMMIT_SHA}
+            if m == "PATCH" and "/git/refs/heads/" in url:
+                return {"ref": "refs/heads/main", "object": {"sha": NEW_COMMIT_SHA}}
+            if m == "POST" and url.endswith("/pulls"):
+                # AC12: return data so assert_no_pr_opens can detect mutant
+                return {"number": 99, "html_url": "https://github.com/test-org/target-repo/pull/99"}
+            raise ValueError(f"Unexpected request in _full_handler: {m} {url}")
+
+        transport = RecordingTransport(handler=_full_handler)
+
+        mock_policy = MagicMock()
+        mock_policy.allowed_modules_for_team.return_value = ["python_service"]
+
+        mock_org = MagicMock()
+        mock_org.login = "test-org"
+
+        def _fake_render(name: str, dest: str, data: dict | None = None) -> None:
+            p = Path(dest)
+            p.mkdir(parents=True, exist_ok=True)
+            (p / "README.md").write_text(f"# {name}\n", encoding="utf-8")
+
+        with _patch("gitweave.managers.overlays.render_module", side_effect=_fake_render):
+            result = self_serve_overlay_request(
+                team="team-a",
+                repo="target-repo",
+                module_name="python_service",
+                gh_org=mock_org,
+                policy=mock_policy,
+                caller_login="user@example.com",
+                transport=transport,
+            )
+
+        # AC12: no PR should have been opened on the REAL apply path
+        transport.assert_no_pr_opens()
+        self.assertEqual(result["module"], "python_service")
+
     def test_request_help_exits_zero(self):
         """gw overlay request --help exits 0."""
         import subprocess

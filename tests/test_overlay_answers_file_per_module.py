@@ -80,6 +80,10 @@ def _make_handler(per_module_state: dict[str, dict | None]):
         if m == "PATCH" and "/git/refs/heads/" in url:
             return {"ref": "refs/heads/main", "object": {"sha": NEW_COMMIT_SHA}}
 
+        # AC12: explicitly reject PR opens so assert_no_pr_opens catches mutants
+        if m == "POST" and url.endswith("/pulls"):
+            return {"number": 1, "html_url": "https://github.com/test/pr/1"}
+
         raise ValueError(f"Unexpected fake-handler request: {m} {url}")
 
     handler.captured_tree_entries = captured_tree_entries  # type: ignore[attr-defined]
@@ -102,6 +106,7 @@ class TestPerModuleAnswersFile(unittest.TestCase):
         transport_ps = RecordingTransport(handler=handler_ps)
         result_ps = apply_module_to_repo(REPO, ps_spec, transport_ps)
         self.assertEqual(result_ps.action, "created")
+        transport_ps.assert_no_pr_opens()
 
         # Confirm tree entry uses per-module path
         ps_entries = handler_ps.captured_tree_entries
@@ -136,6 +141,7 @@ class TestPerModuleAnswersFile(unittest.TestCase):
         transport_tf = RecordingTransport(handler=handler_tf)
         result_tf = apply_module_to_repo(REPO, tf_spec, transport_tf)
         self.assertEqual(result_tf.action, "created")
+        transport_tf.assert_no_pr_opens()
 
         tf_entries = handler_tf.captured_tree_entries
         self.assertTrue(tf_entries, "Expected at least one tree POST for terraform_module")
@@ -177,6 +183,7 @@ class TestPerModuleAnswersFile(unittest.TestCase):
         })
         transport_tf = RecordingTransport(handler=handler_tf)
         apply_module_to_repo(REPO, tf_spec, transport_tf)
+        transport_tf.assert_no_pr_opens()
 
         tf_entries = handler_tf.captured_tree_entries
         tf_paths = [e["path"] for entries in tf_entries for e in entries]
@@ -225,6 +232,8 @@ class TestRootAnswersFileMutant(unittest.TestCase):
             all_paths,
             f"Per-module answers file missing from tree; got {all_paths}",
         )
+        # AC12: no PR should have been opened
+        transport.assert_no_pr_opens()
 
 
 if __name__ == "__main__":

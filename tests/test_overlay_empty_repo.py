@@ -139,6 +139,59 @@ class TestOverlayEmptyRepo(unittest.TestCase):
                 apply_module_to_repo(REPO, spec, transport)
 
 
+class TestAnswersFileWrittenLast(unittest.TestCase):
+    """AC16: module answers file is written last so partial failures don't record the module."""
+
+    def test_answers_last_in_bootstrap_contents_puts(self):
+        """AC16: for empty repos (Contents API path), answers file PUT comes after all other files."""
+        put_order: list[str] = []
+
+        def handler(method: str, url: str, **kwargs):
+            m = method.upper()
+
+            # No applied state (fresh repo)
+            if m == "GET" and ".gitweave/" in url and "/contents/" in url:
+                return None
+
+            # Ref lookup → empty repo (409)
+            if m == "GET" and "/git/refs/heads/" in url:
+                raise _EmptyRepoError("409 Git Repository is empty")
+
+            # Contents API bootstrap — record PUT order
+            if m == "PUT" and "/contents/" in url:
+                path = url.split("/contents/", 1)[-1]
+                put_order.append(path)
+                return {"content": {}, "commit": {"sha": "sha-" + path[:8]}}
+
+            raise ValueError(f"Unexpected request: {m} {url}")
+
+        def _multi_file_render(name: str, dest: str, data: dict | None = None) -> None:
+            p = Path(dest)
+            p.mkdir(parents=True, exist_ok=True)
+            (p / "README.md").write_text(f"# {name}\n", encoding="utf-8")
+            (p / "setup.py").write_text("# setup\n", encoding="utf-8")
+
+        transport = RecordingTransport(handler=handler)
+        spec = ModuleSpec(
+            name="python_service", version="1.0.0", inputs={"repo_name": "svc"}
+        )
+
+        with patch("gitweave.managers.overlays.render_module", side_effect=_multi_file_render):
+            result = apply_module_to_repo(REPO, spec, transport)
+
+        self.assertEqual(result.action, "created")
+        self.assertGreater(len(put_order), 0, "Expected at least one PUT call")
+
+        # The answers file must be last
+        answers_path = ".gitweave/python_service.copier-answers.yml"
+        self.assertIn(answers_path, put_order, f"Answers file not found in PUT order: {put_order}")
+        self.assertEqual(
+            put_order[-1],
+            answers_path,
+            f"Answers file must be the LAST PUT; actual order: {put_order}",
+        )
+
+
 class TestRepositoryNotFoundError(unittest.TestCase):
     """AC17: transport returning None on ref lookup → RepositoryNotFoundError, not TypeError."""
 

@@ -187,6 +187,30 @@ class TestGwOverlayEmptyRepoAcceptance(unittest.TestCase):
             "Default branch has no commit after apply on empty repo",
         )
 
+        # AC18: read back .github/workflows/ content via API — not just commit SHA
+        try:
+            workflow_contents = gh_repo.get_contents(".github/workflows/ci.yml")
+            workflow_text = workflow_contents.decoded_content.decode("utf-8")
+            self.assertTrue(
+                workflow_text.strip(),
+                ".github/workflows/ci.yml is present but empty after overlay apply",
+            )
+            # Must be valid YAML
+            import yaml as _yaml
+            parsed_wf = _yaml.safe_load(workflow_text)
+            self.assertIsInstance(
+                parsed_wf, dict,
+                f".github/workflows/ci.yml must be a valid YAML mapping; got: {type(parsed_wf)}",
+            )
+        except Exception as exc:
+            status = getattr(exc, "status", None)
+            if status == 404:
+                self.fail(
+                    ".github/workflows/ci.yml not found after overlay apply on empty repo. "
+                    f"stdout={result.stdout}\nstderr={result.stderr}"
+                )
+            raise
+
         # No PRs should have been created (direct commit to default branch)
         prs = list(gh_repo.get_pulls(state="open"))
         self.assertEqual(prs, [], f"Expected zero open PRs; got {prs}")

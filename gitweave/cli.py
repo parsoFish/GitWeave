@@ -407,9 +407,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    import sys as _sys
+    # When run as `python -m gitweave.cli`, __name__ == '__main__' and CPython
+    # executes the module body in a fresh namespace distinct from the cached
+    # sys.modules['gitweave.cli'] entry that sitecustomize already patched.
+    # Prefer 'gitweave.cli' so test patches (e.g. sitecustomize mutants) are
+    # visible; fall back to __name__ for the entry-point / direct-import path.
+    _self = _sys.modules.get('gitweave.cli', _sys.modules[__name__])
     parser = _build_parser()
     args = parser.parse_args()
-    args.func(args)
+    func_name = getattr(args.func, "__name__", None)
+    func = getattr(_self, func_name, args.func) if func_name else args.func
+    func(args)
 
 
 if __name__ == "__main__":

@@ -101,21 +101,28 @@ def _ensure_property_definition(gh_org, org_login: str, property_name: str) -> N
         )
     except Exception as exc:
         # 422 means property already exists — treat as success
-        msg = str(exc).lower()
-        if "422" in msg or "already exist" in msg or "unprocessable" in msg:
+        status = getattr(exc, "status", None)
+        if status == 422:
             return
         raise
 
 
 def _get_repo_property(gh_org, org_login: str, repo_name: str, property_name: str) -> str | None:
-    """Return current value of *property_name* on *repo_name*, or None if unset."""
+    """Return current value of *property_name* on *repo_name*, or None if unset.
+
+    Returns None only on 404 (property not set).
+    Raises GithubException (propagates) on 403, 500, or any other error.
+    """
     try:
         _, data = gh_org._requester.requestJsonAndCheck(
             "GET",
             f"/repos/{org_login}/{repo_name}/properties/values",
         )
-    except Exception:
-        return None
+    except Exception as exc:
+        status = getattr(exc, "status", None)
+        if status == 404:
+            return None
+        raise  # 403, 500, and other errors propagate — never silently ignore
     for item in data or []:
         if item.get("property_name") == property_name:
             return item.get("value")

@@ -4,6 +4,11 @@ _metadata:
   min_copier_version: "9.0.0"
   description: "Standard Python service module with CI workflow"
 
+repo_name:
+  type: str
+  help: "Repository name (used as the top-level directory in the rendered tree)"
+  default: my_repo
+
 service_name:
   type: str
   help: "Snake-case name of the service"
