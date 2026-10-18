@@ -93,14 +93,16 @@ class TestSelfServeMembership:
         assert "not-a-member" in str(exc_info.value)
         assert "member" in str(exc_info.value).lower()
 
-    # AC2 self-join: caller not in team but adding self → allowed (policy gates, no membership pre-check)
-    def test_self_join_allowed_when_not_member(self):
+    # AC27/I3b: self-join without existing membership is forbidden (I3b contract)
+    def test_self_join_without_membership_is_denied(self):
+        """AC27/I3b: self-join without existing membership must be refused."""
         org = _mock_org_no_membership()
         gh = _mock_gh("requester")
-        # caller_login == member_login — self-join path, no membership check
-        result = self_serve_add_member("platform", "requester", org, POLICY, "requester", gh=gh)
-        org.get_team_by_slug.return_value.add_membership.assert_called_once()
-        assert result == {"applied": True}
+        # caller_login == member_login — membership check still required
+        with pytest.raises(PolicyDenied) as exc_info:
+            self_serve_add_member("platform", "requester", org, POLICY, "requester", gh=gh)
+        org.get_team_by_slug.return_value.add_membership.assert_not_called()
+        assert "not a member" in str(exc_info.value).lower()
 
     # AC2 variant: membership exists but state is not active
     def test_pending_caller_is_denied(self):

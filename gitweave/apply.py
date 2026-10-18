@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from gitweave.config import load_config
 from gitweave.managers.org import OrgSettingsManager, ResourceStatus
+from gitweave.managers.overlays import RepositoryNotFoundError  # noqa: F401 (re-exported for callers)
 from gitweave.managers.teams import TeamsManager
 from gitweave.managers.repos import ReposManager
 from gitweave.managers.rulesets import RulesetsManager, RulesetsUnsupportedError
@@ -53,7 +54,12 @@ def apply(gh_org, json_mode: bool = False) -> ApplyResult:
         result.statuses.append(repos_mgr.apply(repo))
 
     for repo_name in cfg.get("overlay_repos", []):
-        apply_overlays_for_repo(repo_name, gh_org)
+        overlay_results = apply_overlays_for_repo(repo_name, gh_org)
+        for ov in overlay_results:
+            if ov.action == "error":
+                result.statuses.append(
+                    ResourceStatus(name=ov.repo, status="error", error=ov.message)
+                )
 
     rulesets_mgr = RulesetsManager(gh_org)
     for rs in cfg["rulesets"]:

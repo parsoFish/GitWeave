@@ -34,7 +34,7 @@ _REQUIRED_VARS = (
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 _MODULE_NAME = "python_service"
-_MODULE_VERSION = "20261017.0"
+_MODULE_VERSION = "20261018.0"
 _MODULE_INPUTS = {"service_name": "empty_repo_test", "python_version": "3.11"}
 
 # ---------------------------------------------------------------------------
