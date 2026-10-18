@@ -1,40 +1,5 @@
-{
-  "statuses": [
-    {
-      "name": "org_settings",
-      "status": "ok",
-      "error": null
-    },
-    {
-      "name": "engineering",
-      "status": "ok",
-      "error": null
-    },
-    {
-      "name": "platform",
-      "status": "ok",
-      "error": null
-    },
-    {
-      "name": "forge-main-protection",
-      "status": "skipped",
-      "error": "org plan does not support rulesets"
-    }
-  ],
-  "state": {
-    "org_settings": {
-      "description": "",
-      "default_repository_permission": "read",
-      "web_commit_signoff_required": false,
-      "members_can_create_repositories": true
-    },
-    "teams": [],
-    "repos": [],
-    "rulesets": {
-      "unsupported": "Upgrade to GitHub Team to enable this feature."
-    }
-  }
-}
+  ok: org_settings
+  ok: engineering
+  ok: platform
+  ERROR: forge-main-protection — org plan does not support rulesets
 [stderr] Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
-Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden
-Request GET /orgs/dave-parso/rulesets failed with 403: Forbidden

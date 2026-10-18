@@ -1,12 +1,12 @@
 # I4 — Modules that exist, and overlays that apply them
 
-> _Derived from `demo.json` (D-07). Essence:_ I4 — Modules that exist, and overlays that apply them — 19 work items delivered against 111 acceptance criteria, 2 merge-boundary gates run.
+> _Derived from `demo.json` (D-07). Essence:_ I4 — Modules that exist, and overlays that apply them — 20 work items delivered against 140 acceptance criteria, 2 merge-boundary gates run.
 
 ## What this enables
 
 _Agent narrative — not evidence._
 
-Operators can now declare Copier modules in repo overlay configs; gw apply renders and commits them atomically to every matching branch via the Git Trees API — no pull requests, no partial states. gw plan previews the overlay diff offline before anything is committed. Teams request permitted modules through policy-gated self-service, and the recording transport makes the no-PR contract machine-checkable across every code path.
+Operators can now declare Copier modules in repo overlays and apply them atomically via the Git Trees API — no pull requests, no manual file edits. A team requests a module through policy-gated self-serve; GitWeave renders the template offline, commits the full tree in one atomic push, and writes a per-module answers file so subsequent applies are idempotent. The plan command shows drift before any write touches a repo.
 
 ## Summary
 
@@ -29,20 +29,21 @@ Operators can now declare Copier modules in repo overlay configs; gw apply rende
 - WI-16 [complete] K4 — Copier as a declared dependency, version-enforced (items 6, 7): copier is declared in pyproject.toml's dependencies with the same spec as requirements.txt, and gw module render refuses a module whose min_copier_version is above the installed Copier, naming both versions (no deferral).
 - WI-17 [failed] # WI-17 — review-fix concern (code-fix)
 - WI-18 [complete] # WI-18 — review-fix concern (code-fix)
-- Commit: `2682085c7b9e3ecc819688b748a72fe916d3e917`
+- WI-19 [complete] # WI-19 — review-fix concern (code-fix)
+- Commit: `0718b48cecceb57e0cd1739aa84c6a07df25c317`
 
 ## Visual Changes
 
-### gw plan shows overlay diff — would add or unchanged per declared repo
+### gw plan shows overlay drift before vs after modules declared
 
 
-### Primary quality gate green: structure, overlay schema and copier schema tests all pass
+### Full quality gate green with overlay and copier tests
 
 
-### gw apply commits rendered module files to repos atomically, no pull request opened
+### gw apply commits overlay modules atomically, no PR opened
 
 
-### git ls-files confirms no tracked files under gitweave.egg-info/ after gitignore entry added
+### gitweave.egg-info absent from tracked files after .gitignore fix
 
 
 ## Test Evidence
@@ -167,6 +168,35 @@ Operators can now declare Copier modules in repo overlay configs; gw apply rende
 - (WI-18) GIVEN a fixture repo declaring python_service whose applied overlay is terraform_module at the current version WHEN gw plan runs offline THEN the overlay line reports drift or an update for the module mismatch, never "unchanged"
 - (WI-18) GIVEN a stub scripts/apply-overlays.py restored in a copy of the tree WHEN the offline suite runs THEN at least one test fails: the retired script is asserted absent; the two tests in tests/test_dry_run_smoke.py that run the missing script and pass vacuously are replaced by that assertion
 - (WI-18) GIVEN every module under modules/ WHEN template paths are scanned for {{ var }} THEN every variable used in a template path is a declared question in that module's copier.yaml (python_service uses repo_name undeclared, so rendering silently drops the directory)
+- (WI-19) GIVEN the gitweave package and its tests WHEN any file is searched for GW_TOKEN THEN no file references GW_TOKEN: live overlay auth uses the GitHub App installation token (auth.get_installation_token), and tests never inject a token env var
+- (WI-19) GIVEN GW_TOKEN is unset and HTTP is intercepted WHEN gw overlay apply <repo> runs through the real CLI dispatch THEN auth.get_installation_token is called and every overlay HTTP request carries its token in Authorization (spy probe, no injected env)
+- (WI-19) GIVEN a repo config declaring spec.modules WHEN gitweave.apply.apply(org) runs (gw apply) THEN gw apply applies that repo's overlays through the overlay apply path (apply_overlays_for_repo or apply_module_to_repo is invoked for the repo)
+- (WI-19) GIVEN live GW_* credentials and GW_TOKEN unset WHEN tests/acceptance/test_gw_apply_overlay_live.py runs: it creates a prefixed empty repo, declares an overlay for it in a temporary config, runs `gw apply` as a subprocess, then cleans up THEN the default branch holds the rendered .github/workflows/ci.yml and the module answers file, read back through the API with the installation token; a second `gw apply` leaves the head SHA unchanged; no pull request exists; 0 skipped
+- (WI-19) GIVEN the recorded fixture and no credentials WHEN gw plan --json --fixture tests/fixtures/overlay-smoke.json runs THEN it exits 0 and prints JSON with a rulesets field and the overlay items
+- (WI-19) GIVEN the org rulesets endpoint returns 403 {"message":"Resource not accessible by integration"} (missing token permission) WHEN RulesetsManager.list_managed runs THEN it raises (exit non-zero at the CLI, naming the permission) instead of returning an empty list; the plan-lacking body "Upgrade to GitHub Team to enable this feature." is the only 403 reported as unsupported
+- (WI-19) GIVEN the live throwaway org, whose plan lacks rulesets WHEN gw plan --json runs live THEN exit 0 and the rulesets field reports "unsupported" carrying the API message ("Upgrade to GitHub Team…"), not [] or "no drift"
+- (WI-19) GIVEN the gitweave package WHEN HTTP errors are classified THEN no code path classifies by status-code substring ("403" in str(exc)/msg anywhere; any "<3 digits>" in in overlays.py); classification uses exc.status / resp.status_code
+- (WI-19) GIVEN a fixture repo whose applied python_service version is 19990101.0 (older than declared) WHEN gw plan runs offline THEN the overlay line reports an update, not "unchanged"
+- (WI-19) GIVEN team a with allowed_modules [python_service] and allowed_repo_patterns [a-*] WHEN team a requests python_service for repo b-x THEN the request is refused naming allowed_repo_patterns and apply is never called
+- (WI-19) GIVEN the repository WHEN tests and code are searched THEN GW_CONTROL_REPO and _assert_no_control_repo_pr are gone
+- (WI-19) GIVEN a mutant where apply_module_to_repo also POSTs /repos/{r}/pulls WHEN the overlay and self-serve unit suites run THEN at least one test fails: the no-PR assertion runs on the REAL self-serve request path (apply_module_to_repo is not patched out in those tests)
+- (WI-19) GIVEN a mutant that writes "wrong-value" as the repo-scope custom property value WHEN the offline suite runs THEN at least one offline test fails that passes on the unmutated tree (the repo-scope idempotency test asserts the value actually written, not a hardcoded fake GET)
+- (WI-19) GIVEN the self-serve CLI WHEN tests/test_cli_self_serve_real_dispatch.py runs THEN add-member and add-exception (as well as update-content) each have a real-parser/real-dispatch test, only HTTP faked, asserting the write request each makes (method, path and body); a handler that skips its write fails it
+- (WI-19) GIVEN live GW_* credentials and a one-member org whose only member (the caller) is an org owner WHEN tests/acceptance/test_gw_self_serve.py -k add_member_within_policy runs THEN it passes with 0 skipped on the I3b contract path: the caller is an active team member before the command (pre-added via the App token), gw self-serve add-member exits 0 and the membership reads back active; it never relies on self-join without membership (SB19); its no-op blindness with one owner identity is a recorded limit, and SB8b carries the add-member effect proof
+- (WI-19) GIVEN an empty repository and a module rendering several files WHEN the overlay is applied THEN the module answers file is written last, so a failure part-way never records the module as applied (asserted on the recorded request order in tests/test_overlay_empty_repo.py)
+- (WI-19) GIVEN a transport whose every response is None (ref 404) WHEN apply_module_to_repo runs THEN it raises a named error, not TypeError
+- (WI-19) GIVEN the empty-repo and two-module live acceptance tests WHEN they are read THEN each reads back .github/workflows/ (a rendered module file) through the API and asserts its content, not only the commit SHA
+- (WI-19) GIVEN modules/terraform_module rendered with a non-default input WHEN tests/test_module_terraform_render.py -k yamllint runs THEN the rendered CI workflow passes yamllint
+- (WI-19) GIVEN all GW_* variables unset WHEN python3 -m pytest tests/ runs THEN zero failures: live tests skip with a reason naming GW_*, they never self.fail (AC12)
+- (WI-19) GIVEN three source mutants of cmd_overlay_status in gitweave/cli.py, one at a time: the "No modules applied." print, the "  {name} @ {version}" line, and the "    {k}: {v}" inputs line each blanked WHEN the offline suite runs per mutant THEN each mutant fails at least one test: the overlay-status CLI handler is driven through dispatch with only HTTP faked, asserting the no-modules message, the module name@version line and each input line (keep those three print literals)
+- (WI-19) GIVEN gitweave/managers/overlays.py and gitweave/self_serve/exceptions.py WHEN error handling is searched THEN no error is classified by message substring (no "<text>" in msg / str(exc) / err / .lower(): the empty-repo case uses the 409 status, the property-exists case uses the 422 status)
+- (WI-19) GIVEN _get_repo_property in gitweave/self_serve/exceptions.py WHEN the properties GET returns data, 404, 403 or 500 THEN data gives the value and 404 gives None; 403 and 500 raise GithubException instead of returning None (no write on a failed read)
+- (WI-19) GIVEN a fixture repo declaring python_service whose applied overlay is terraform_module at the current version WHEN gw plan runs offline THEN the overlay line reports drift or an update for the module mismatch, never "unchanged"
+- (WI-19) GIVEN a stub scripts/apply-overlays.py restored in a copy of the tree WHEN the offline suite runs THEN at least one test fails: the retired script is asserted absent; the two tests in tests/test_dry_run_smoke.py that run the missing script and pass vacuously are replaced by that assertion
+- (WI-19) GIVEN every module under modules/ WHEN template paths are scanned for {{ var }} THEN every variable used in a template path is a declared question in that module's copier.yaml (python_service uses repo_name undeclared, so rendering silently drops the directory)
+- (WI-19) GIVEN a policy-permitted caller who is NOT an active member of team a (membership GET returns 404) WHEN self_serve_add_member adds the caller themselves to team a THEN it raises PolicyDenied naming the membership rule ("not a member of team") and add_membership is never called: self-join without membership stays forbidden (I3b contract)
+- (WI-19) GIVEN every module under modules/ that the branch changes against main WHEN its copier.yaml _metadata.version is compared with scripts/bump-module-version.py <module> (the CI Validate Module Version rule) THEN they are equal for each changed module, so the CI job Validate Module Version passes on the head (at e20214e both python_service and terraform_module are 20261017.0, expected 20261018.0); CalVer is date-based, so bump on the day the round runs
+- (WI-19) GIVEN gw apply with an overlay_repos entry whose repository does not exist (apply_module_to_repo raises RepositoryNotFoundError) WHEN gitweave.apply.apply(org) runs THEN the overlay error is reported in the apply result (has_errors is True, so gw apply exits non-zero) instead of being discarded with exit 0
 
 ## Files Changed
 
@@ -280,5 +310,5 @@ Operators can now declare Copier modules in repo overlay configs; gw apply rende
 - `tests/test_structure.py`
 
 ```
-108 files changed, 7589 insertions(+), 611 deletions(-)
+108 files changed, 7717 insertions(+), 612 deletions(-)
 ```
