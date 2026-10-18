@@ -196,6 +196,31 @@ class TestGwOverlayTwoModulesLive(unittest.TestCase):
             f"Expected an input key from module A in status. Got:\n{status_result.stdout}",
         )
 
+        # AC18: read back .github/workflows/ content via API — not just commit SHA
+        import yaml as _yaml
+        for module_name in (_MODULE_A, _MODULE_B):
+            try:
+                wf_contents = self.gh_repo.get_contents(".github/workflows/ci.yml")
+                wf_text = wf_contents.decoded_content.decode("utf-8")
+                self.assertTrue(
+                    wf_text.strip(),
+                    f".github/workflows/ci.yml is empty after applying {module_name}",
+                )
+                parsed_wf = _yaml.safe_load(wf_text)
+                self.assertIsInstance(
+                    parsed_wf, dict,
+                    f".github/workflows/ci.yml must be a valid YAML mapping (module {module_name})",
+                )
+            except Exception as exc:
+                status = getattr(exc, "status", None)
+                if status == 404:
+                    self.fail(
+                        f".github/workflows/ci.yml not found after applying {module_name}. "
+                        f"stdout={result.stdout}\nstderr={result.stderr}"
+                    )
+                raise
+            break  # both modules share the same workflow; check once is sufficient
+
         # No open PRs
         prs = list(self.gh_repo.get_pulls(state="open"))
         self.assertEqual(prs, [], f"Expected zero open PRs; got {prs}")

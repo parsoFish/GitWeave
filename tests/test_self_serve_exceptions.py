@@ -75,7 +75,9 @@ class TestPolicyExceptions:
 
         def _side_effect(method, url, **kwargs):
             if "properties/schema" in url:
-                raise Exception("422 Unprocessable Entity: property already exists")
+                exc = Exception("422 Unprocessable Entity: property already exists")
+                exc.status = 422  # use status code, not message substring
+                raise exc
             return ({}, {})
 
         org._requester.requestJsonAndCheck.side_effect = _side_effect

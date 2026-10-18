@@ -69,7 +69,7 @@ def _load_example_overlay() -> dict:
 class TestApplyOverlaysScriptExists(unittest.TestCase):
     """Since WI-8, apply-overlays.py must be RETIRED (not tracked by git)."""
 
-    def test_apply_overlays_script_exists_at_expected_path(self):
+    def test_apply_overlays_script_not_tracked_by_git(self):
         """scripts/apply-overlays.py must NOT be tracked by git (retired in WI-8)."""
         result = subprocess.run(
             ["git", "ls-files", "scripts/apply-overlays.py"],
@@ -83,22 +83,12 @@ class TestApplyOverlaysScriptExists(unittest.TestCase):
             "scripts/apply-overlays.py is still tracked by git; WI-8 retired it.",
         )
 
-    def test_script_is_runnable_by_python_without_syntax_errors(self):
-        """The script must load without SyntaxError so Python can execute it."""
-        result = _run_script_with_args("--help")
-        self.assertNotIn(
-            "SyntaxError",
-            result.stderr,
-            f"scripts/apply-overlays.py has a SyntaxError:\n{result.stderr}",
-        )
-
-    def test_script_is_runnable_by_python_without_import_errors(self):
-        """The script must not have unresolvable imports."""
-        result = _run_script_with_args("--help")
-        self.assertNotIn(
-            "ModuleNotFoundError",
-            result.stderr,
-            f"scripts/apply-overlays.py has an unresolvable import:\n{result.stderr}",
+    def test_apply_overlays_script_does_not_exist_on_disk(self):
+        """scripts/apply-overlays.py must NOT exist on disk (retired in WI-8)."""
+        self.assertFalse(
+            os.path.isfile(SCRIPT_PATH),
+            f"scripts/apply-overlays.py exists at {SCRIPT_PATH!r} but must be absent; "
+            "WI-8 retired this script in favour of 'gw plan --fixture'.",
         )
 
 

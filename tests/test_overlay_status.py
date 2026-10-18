@@ -76,5 +76,88 @@ class TestOverlayStatus(unittest.TestCase):
         self.assertIn(b"status", result.stdout)
 
 
+class TestOverlayStatusCLIDispatch(unittest.TestCase):
+    """AC21: overlay-status CLI dispatch tests — all three print literals asserted.
+
+    Each test dispatches through cmd_overlay_status with only the GitHub API
+    faked.  Three print literals kept alive:
+      1. "No modules applied."          — test_cmd_overlay_status_no_modules
+      2. "  {name} @ {version}"         — test_cmd_overlay_status_name_version_line
+      3. "    {k}: {v}" (inputs line)   — test_cmd_overlay_status_inputs_line
+    """
+
+    def _run_cmd(self, gh_repo, repo_arg: str = "test-org/my-repo") -> tuple[int, str, str]:
+        """Dispatch cmd_overlay_status; return (exit_code, stdout, stderr)."""
+        import argparse, io, contextlib
+        from gitweave.cli import cmd_overlay_status
+
+        args = argparse.Namespace(repo=repo_arg)
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+        exit_code = 0
+
+        mock_org = MagicMock()
+        mock_org.get_repo.return_value = gh_repo
+
+        with (
+            patch("gitweave.cli._get_org_client", return_value=mock_org),
+            contextlib.redirect_stdout(stdout_buf),
+            contextlib.redirect_stderr(stderr_buf),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cmd_overlay_status(args)
+            exit_code = ctx.exception.code
+
+        return exit_code, stdout_buf.getvalue(), stderr_buf.getvalue()
+
+    def test_cmd_overlay_status_no_modules(self):
+        """AC21 literal 1: 'No modules applied.' is printed when list is empty."""
+        gh_repo = _make_gh_repo(None)
+        exit_code, stdout, _ = self._run_cmd(gh_repo)
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            "No modules applied.",
+            stdout,
+            f"Expected 'No modules applied.' in stdout; got: {stdout!r}",
+        )
+
+    def test_cmd_overlay_status_name_version_line(self):
+        """AC21 literal 2: '  {name} @ {version}' line is printed for each module."""
+        applied = {
+            "_module_name": "python_service",
+            "_module_version": "20261017.0",
+            "_answers": {},
+        }
+        gh_repo = _make_gh_repo([applied])
+        exit_code, stdout, _ = self._run_cmd(gh_repo)
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            "  python_service @ 20261017.0",
+            stdout,
+            f"Expected '  python_service @ 20261017.0' in stdout; got: {stdout!r}",
+        )
+
+    def test_cmd_overlay_status_inputs_line(self):
+        """AC21 literal 3: '    {k}: {v}' line is printed for each input key-value."""
+        applied = {
+            "_module_name": "python_service",
+            "_module_version": "20261017.0",
+            "_answers": {"service_name": "my_svc", "python_version": "3.11"},
+        }
+        gh_repo = _make_gh_repo([applied])
+        exit_code, stdout, _ = self._run_cmd(gh_repo)
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            "    service_name: my_svc",
+            stdout,
+            f"Expected '    service_name: my_svc' in stdout; got: {stdout!r}",
+        )
+        self.assertIn(
+            "    python_version: 3.11",
+            stdout,
+            f"Expected '    python_version: 3.11' in stdout; got: {stdout!r}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

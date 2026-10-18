@@ -170,7 +170,7 @@ def apply_module_to_repo(
                 _resp = getattr(exc, "response", None)
                 status = getattr(_resp, "status_code", None)
             msg = str(exc)
-            if status == 409 or "empty" in msg.lower():
+            if status == 409:
                 is_empty_repo = True
             else:
                 raise
@@ -180,9 +180,14 @@ def apply_module_to_repo(
         # API (PUT /repos/{owner}/{repo}/contents/{path}) instead — it works on
         # truly uninitialized repos and creates the initial commit automatically.
         if is_empty_repo:
-            for path in sorted(Path(tmp_dir).rglob("*")):
-                if not path.is_file():
-                    continue
+            # AC16: write the answers file LAST so a failure part-way never
+            # records the module as applied.  Partition files into non-answers
+            # first, answers-file last.
+            answers_rel = _module_answers_path(module_spec.name)
+            all_files = sorted(Path(tmp_dir).rglob("*"))
+            non_answers = [p for p in all_files if p.is_file() and str(p.relative_to(tmp_dir)) != answers_rel]
+            answers_files = [p for p in all_files if p.is_file() and str(p.relative_to(tmp_dir)) == answers_rel]
+            for path in non_answers + answers_files:
                 raw = path.read_bytes()
                 content_b64 = base64.b64encode(raw).decode("ascii")
                 rel = str(path.relative_to(tmp_dir))
@@ -260,7 +265,7 @@ def apply_module_to_repo(
                 _resp = getattr(exc, "response", None)
                 status = getattr(_resp, "status_code", None)
             msg = str(exc)
-            if status == 422 or "protected" in msg.lower():
+            if status == 422:
                 raise BranchProtectedError(
                     repo=repo_full_name,
                     branch=default_branch,

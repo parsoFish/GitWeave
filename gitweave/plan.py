@@ -189,12 +189,18 @@ def _diff_overlays(fixture_repos: list[dict]) -> list[OverlayPlanItem]:
                 )
             )
         else:
-            # Overlay applied; check if version matches current declared version
+            # Overlay applied; check for drift: wrong module or stale version
             applied_module = applied.get("_module_name", "")
             applied_version = applied.get("_module_version", "")
-            current_version = _module_version(applied_module)
-            if current_version and applied_version != current_version:
+            declared_module = declared[0]
+            current_version = _module_version(declared_module)
+            if applied_module != declared_module:
+                # Module mismatch: different module applied than declared
                 action: OverlayAction = "update"
+                display_version = current_version or applied_version
+            elif current_version and applied_version != current_version:
+                # Same module but stale version
+                action = "update"
                 display_version = current_version
             else:
                 action = "unchanged"

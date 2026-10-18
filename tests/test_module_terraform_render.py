@@ -68,3 +68,24 @@ class TestTerraformModuleRender:
             assert isinstance(parsed, dict), (
                 f"CI workflow did not parse as a YAML mapping:\n{content}"
             )
+
+    def test_rendered_ci_workflow_passes_yamllint(self) -> None:
+        """AC19: rendered CI workflow passes yamllint (no YAML style violations)."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            render_module(
+                "terraform_module",
+                tmp,
+                data={"module_name": MODULE_NAME},
+            )
+            workflow = Path(tmp) / ".github" / "workflows" / "ci.yml"
+            assert workflow.exists(), f"CI workflow not rendered at {workflow}"
+            result = subprocess.run(
+                ["yamllint", "-d", "relaxed", str(workflow)],
+                capture_output=True,
+                text=True,
+            )
+            assert result.returncode == 0, (
+                f"yamllint reported errors in rendered CI workflow:\n"
+                f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            )
